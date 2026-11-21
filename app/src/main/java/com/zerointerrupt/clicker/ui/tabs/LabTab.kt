@@ -35,6 +35,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +56,7 @@ import com.zerointerrupt.clicker.automation.AutomationReceiver
 import com.zerointerrupt.clicker.automation.LocalRpcServer
 import com.zerointerrupt.clicker.model.ClickGlobalSettings
 import com.zerointerrupt.clicker.shizuku.TouchMuxUserService
+import com.zerointerrupt.clicker.shizuku.ShizukuController
 import com.zerointerrupt.clicker.ui.MainScreenCallbacks
 import com.zerointerrupt.clicker.ui.MainUiState
 import com.zerointerrupt.clicker.ui.components.CheckSwitch
@@ -72,6 +75,11 @@ fun LabTab(
     val cs = MaterialTheme.colorScheme
     val haptic = LocalHapticFeedback.current
     var versionTapCount by remember { mutableIntStateOf(0) }
+    val shizukuDiagnostics by ShizukuController.diagnostics.collectAsState()
+
+    LaunchedEffect(state.connectionState) {
+        ShizukuController.refreshShizukuDiagnostics()
+    }
 
     Column(
         modifier = modifier
@@ -81,6 +89,67 @@ fun LabTab(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         PageTopHeader(title = "Laboratuvar")
+
+        ExpressiveCard {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Shizuku bağlantı teşhisi",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Salt okunur binder, izin ve UserService durumu",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = cs.onSurfaceVariant
+                        )
+                    }
+                    IconButton(
+                        onClick = { ShizukuController.refreshShizukuDiagnostics() },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = "Shizuku teşhisini yenile",
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = cs.surfaceContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        DiagLine("Shizuku binder", if (shizukuDiagnostics.binderAlive) "CANLI" else "YOK")
+                        DiagLine("Shizuku izni", if (shizukuDiagnostics.permissionGranted) "VERİLDİ" else "YOK / DENIED")
+                        DiagLine("UserService binder", if (shizukuDiagnostics.userServiceBinderAlive) "CANLI" else "YOK")
+                        DiagLine("Bağlantı durumu", shizukuDiagnostics.connectionState.name)
+                        DiagLine("Shizuku API sürümü", shizukuDiagnostics.shizukuVersion.toString())
+                        DiagLine("Son olay", shizukuDiagnostics.lastEvent)
+                        if (shizukuDiagnostics.lastError.isNotBlank()) {
+                            Text(
+                                text = "Son hata: ${shizukuDiagnostics.lastError}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = cs.error,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
         ExpressiveCard {
             Column(
