@@ -121,7 +121,6 @@ object ShizukuController {
     private var bindStartedAtMs = 0L
     private var noopArgs: Shizuku.UserServiceArgs? = null
     private var noopBindTimeoutJob: Job? = null
-    private var noopBindStartedAtMs = 0L
     private const val BIND_TIMEOUT_MS = 5_000L
     private const val NOOP_BIND_TIMEOUT_MS = 5_000L
     private const val REBIND_DELAY_MS = 250L
@@ -482,6 +481,7 @@ object ShizukuController {
             .processNameSuffix("touchmux")
             .debuggable(BuildConfig.DEBUG)
             .version(BuildConfig.VERSION_CODE)
+            .tag("touch-mux-production")
             .also { boundArgs = it }
 
         try {
@@ -570,7 +570,7 @@ object ShizukuController {
         noopArgs?.let { oldArgs ->
             runCatching { Shizuku.unbindUserService(oldArgs, noopServiceConnection, true) }
         }
-        noopBindStartedAtMs = System.currentTimeMillis()
+        noopArgs = null
         updateNoopTestStatus("BAŞLATILDI: bindUserService bekleniyor")
         publishDiagnostics(
             "No-op UserService bind başlatıldı",
@@ -687,7 +687,11 @@ object ShizukuController {
             connectionState = _connectionState.value,
             shizukuVersion = version,
             lastEvent = if (manualRefresh) previous.lastEvent else event,
-            lastError = if (manualRefresh) previous.lastError else effectiveError.ifBlank { "Henüz hata ayrıntısı yok" },
+            lastError = if (manualRefresh || effectiveError.isBlank()) {
+                previous.lastError
+            } else {
+                effectiveError
+            },
             lastCallback = previous.lastCallback,
             exceptionClass = if (manualRefresh) previous.exceptionClass else exceptionClass,
             exceptionMessage = if (manualRefresh) previous.exceptionMessage else exceptionMessage,
