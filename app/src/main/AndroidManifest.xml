@@ -10,6 +10,10 @@
     <!-- Needed on some Android kernels to bind local 127.0.0.1 loopback sockets (never listens on external interfaces) -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <queries>
+        <package android:name="moe.shizuku.privileged.api" />
+    </queries>
+
     <application
         android:name=".ZeroInterruptApp"
         android:allowBackup="true"

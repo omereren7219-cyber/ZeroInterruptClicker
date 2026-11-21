@@ -22,7 +22,9 @@ import com.zerointerrupt.clicker.model.ClickTarget
 import com.zerointerrupt.clicker.model.ExecutionMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -77,6 +79,8 @@ object ShizukuController {
     private var appContext: Context? = null
     private var listenersRegistered = false
     private var boundArgs: Shizuku.UserServiceArgs? = null
+    private var bindTimeoutJob: Job? = null
+    private const val BIND_TIMEOUT_MS = 3_000L
     @Volatile
     private var service: ITouchMuxService? = null
 
@@ -152,6 +156,8 @@ object ShizukuController {
 
     private val userServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+            bindTimeoutJob?.cancel()
+            bindTimeoutJob = null
             if (binder == null || !binder.pingBinder()) {
                 _connectionState.value = ShizukuConnectionState.ERROR
                 _engineSnapshot.value = _engineSnapshot.value.copy(
@@ -177,7 +183,6 @@ object ShizukuController {
                     service = null
                     _slotStates.value = List(16) { 0 }
                     if (Shizuku.pingBinder() && hasPermission()) {
-                        _connectionState.value = ShizukuConnectionState.BINDING
                         bindUserService()
                     } else {
                         _connectionState.value = ShizukuConnectionState.SHIZUKU_NOT_RUNNING
@@ -192,7 +197,7 @@ object ShizukuController {
             service = null
             _slotStates.value = List(16) { 0 }
             if (Shizuku.pingBinder() && hasPermission()) {
-                _connectionState.value = ShizukuConnectionState.BINDING
+                bindUserService()
             } else {
                 _connectionState.value = ShizukuConnectionState.SHIZUKU_NOT_RUNNING
             }
@@ -227,7 +232,7 @@ object ShizukuController {
         }
         if (!hasPermission()) {
             _connectionState.value = ShizukuConnectionState.NO_PERMISSION
-            _engineSnapshot.value = EngineSnapshot(statusDetail = "Shizuku çalışıyor, izin bekleniyor")
+            _engineSnapshot.value = EngineSnapshot(statusDetail = "Shizuku İzni Gerekli")
             return
         }
         if (service?.asBinder()?.pingBinder() == true) {
@@ -252,6 +257,9 @@ object ShizukuController {
         try {
             if (!Shizuku.pingBinder()) {
                 _connectionState.value = ShizukuConnectionState.SHIZUKU_NOT_RUNNING
+                _engineSnapshot.value = _engineSnapshot.value.copy(
+                    statusDetail = "Shizuku hizmeti çalışmıyor"
+                )
                 return
             }
             if (hasPermission()) {
@@ -277,6 +285,7 @@ object ShizukuController {
             _connectionState.value = ShizukuConnectionState.CONNECTED
             return
         }
+        if (_connectionState.value == ShizukuConnectionState.BINDING) return
         _connectionState.value = ShizukuConnectionState.BINDING
         val args = boundArgs ?: Shizuku.UserServiceArgs(
             ComponentName(ctx.packageName, TouchMuxUserService::class.java.name)
@@ -289,7 +298,21 @@ object ShizukuController {
 
         try {
             Shizuku.bindUserService(args, userServiceConnection)
+            bindTimeoutJob?.cancel()
+            bindTimeoutJob = scope.launch {
+                delay(BIND_TIMEOUT_MS)
+                if (_connectionState.value == ShizukuConnectionState.BINDING && service == null) {
+                    Log.e(TAG, "Timed out waiting for Shizuku UserService connection")
+                    _connectionState.value = ShizukuConnectionState.ERROR
+                    _engineSnapshot.value = _engineSnapshot.value.copy(
+                        statusDetail = "Bağlantı Başarısız: Shizuku UserService 3 saniye içinde bağlanamadı."
+                    )
+                }
+                bindTimeoutJob = null
+            }
         } catch (t: Throwable) {
+            bindTimeoutJob?.cancel()
+            bindTimeoutJob = null
             Log.e(TAG, "bindUserService error", t)
             _connectionState.value = ShizukuConnectionState.ERROR
             _engineSnapshot.value = _engineSnapshot.value.copy(
