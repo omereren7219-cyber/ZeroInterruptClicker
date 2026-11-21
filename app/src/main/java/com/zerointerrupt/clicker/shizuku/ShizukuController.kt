@@ -175,17 +175,21 @@ object ShizukuController {
                 _engineSnapshot.value = _engineSnapshot.value.copy(
                     statusDetail = "Kullanıcı Shizuku iznini reddetti"
                 )
+                publishDiagnostics(
+                    "Shizuku izni reddedildi",
+                    "checkSelfPermission sonucu: DENIED ($grantResult)"
+                )
             }
         }
     }
 
     private val userServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            Log.d(TAG, "UserService onServiceConnected çağrıldı")
+            Log.d(TAG, "UserService onServiceConnected çağrıldı: $name")
             bindTimeoutJob?.cancel()
             bindTimeoutJob = null
             if (binder == null || !binder.pingBinder()) {
-                failBinding("UserService Binder geçersiz veya ölü")
+                failBinding("onServiceConnected binder geçersiz veya ölü: component=$name")
                 return
             }
             val svc = ITouchMuxService.Stub.asInterface(binder)
@@ -227,7 +231,7 @@ object ShizukuController {
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
-            Log.d(TAG, "UserService onServiceDisconnected çağrıldı")
+            Log.d(TAG, "UserService onServiceDisconnected çağrıldı: $name")
             service = null
             synchronized(bindLock) { bindInFlight = false }
             _slotStates.value = List(16) { 0 }
@@ -236,7 +240,44 @@ object ShizukuController {
                 engineMode = TouchMuxUserService.MODE_IDLE,
                 statusDetail = "Bağlantı Koptu: Shizuku UserService bağlantısı kesildi"
             )
-            publishDiagnostics("UserService bağlantısı koptu", "onServiceDisconnected çağrıldı")
+            publishDiagnostics(
+                "UserService bağlantısı koptu",
+                "onServiceDisconnected çağrıldı: component=$name"
+            )
+            scheduleRebind()
+        }
+
+        override fun onBindingDied(name: ComponentName) {
+            Log.e(TAG, "UserService onBindingDied çağrıldı: component=$name")
+            service = null
+            synchronized(bindLock) { bindInFlight = false }
+            _slotStates.value = List(16) { 0 }
+            _connectionState.value = ShizukuConnectionState.ERROR
+            _engineSnapshot.value = _engineSnapshot.value.copy(
+                engineMode = TouchMuxUserService.MODE_IDLE,
+                statusDetail = "UserService binding öldü"
+            )
+            publishDiagnostics(
+                "UserService binding öldü",
+                "onBindingDied çağrıldı: component=$name"
+            )
+            scheduleRebind()
+        }
+
+        override fun onNullBinding(name: ComponentName) {
+            Log.e(TAG, "UserService onNullBinding çağrıldı: component=$name")
+            service = null
+            synchronized(bindLock) { bindInFlight = false }
+            _slotStates.value = List(16) { 0 }
+            _connectionState.value = ShizukuConnectionState.ERROR
+            _engineSnapshot.value = _engineSnapshot.value.copy(
+                engineMode = TouchMuxUserService.MODE_IDLE,
+                statusDetail = "UserService null binder döndürdü"
+            )
+            publishDiagnostics(
+                "UserService null binder",
+                "onNullBinding çağrıldı: component=$name"
+            )
             scheduleRebind()
         }
     }
@@ -402,23 +443,37 @@ object ShizukuController {
     }
 
     private fun publishDiagnostics(event: String, error: String) {
+        var binderError = ""
         val binderAlive = try {
             Shizuku.pingBinder()
-        } catch (_: Throwable) {
+        } catch (t: Throwable) {
+            binderError = "${t.javaClass.simpleName}: ${t.message ?: "mesaj yok"}"
             false
         }
+        var permissionError = ""
         val permissionGranted = try {
             binderAlive && !Shizuku.isPreV11() &&
                 Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
-        } catch (_: Throwable) {
+        } catch (t: Throwable) {
+            permissionError = "${t.javaClass.simpleName}: ${t.message ?: "mesaj yok"}"
             false
         }
-        val serviceAlive = service?.asBinder()?.pingBinder() == true
+        var serviceError = ""
+        val serviceAlive = try {
+            service?.asBinder()?.pingBinder() == true
+        } catch (t: Throwable) {
+            serviceError = "${t.javaClass.simpleName}: ${t.message ?: "mesaj yok"}"
+            false
+        }
         val version = try {
             Shizuku.getVersion()
         } catch (_: Throwable) {
             -1
         }
+        val probeError = listOf(binderError, permissionError, serviceError)
+            .filter { it.isNotBlank() }
+            .joinToString("; ")
+        val effectiveError = error.ifBlank { probeError }
         val current = ShizukuDiagnostics(
             binderAlive = binderAlive,
             permissionGranted = permissionGranted,
@@ -426,14 +481,14 @@ object ShizukuController {
             connectionState = _connectionState.value,
             shizukuVersion = version,
             lastEvent = event,
-            lastError = error
+            lastError = effectiveError
         )
         _diagnostics.value = current
         Log.i(
             TAG,
             "diag event=$event binderAlive=$binderAlive permissionGranted=$permissionGranted " +
                 "userServiceBinderAlive=$serviceAlive state=${current.connectionState} " +
-                "version=$version error=${error.ifBlank { "none" }}"
+                "version=$version error=${effectiveError.ifBlank { "none" }}"
         )
     }
 
