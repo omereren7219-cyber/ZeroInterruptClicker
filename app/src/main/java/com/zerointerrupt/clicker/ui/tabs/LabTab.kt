@@ -1,5 +1,7 @@
 package com.zerointerrupt.clicker.ui.tabs
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -45,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -65,6 +68,9 @@ import com.zerointerrupt.clicker.ui.components.ExpressiveConnectedGroup
 import com.zerointerrupt.clicker.ui.components.ExpressiveOption
 import com.zerointerrupt.clicker.ui.components.PageTopHeader
 import com.zerointerrupt.clicker.ui.components.SlotMatrixStrip
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun LabTab(
@@ -74,8 +80,23 @@ fun LabTab(
 ) {
     val cs = MaterialTheme.colorScheme
     val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
     var versionTapCount by remember { mutableIntStateOf(0) }
     val shizukuDiagnostics by ShizukuController.diagnostics.collectAsState()
+    val diagnosticTimeFormat = remember { SimpleDateFormat("HH:mm:ss.SSS", Locale.US) }
+    fun diagnosticTime(timestampMs: Long): String =
+        if (timestampMs > 0L) diagnosticTimeFormat.format(Date(timestampMs)) else "Henüz yok"
+    val exportDiagnosticsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    output.write(ShizukuController.exportDiagnosticsText().toByteArray(Charsets.UTF_8))
+                }
+            }
+        }
+    }
 
     LaunchedEffect(state.connectionState) {
         ShizukuController.refreshShizukuDiagnostics()
@@ -142,6 +163,8 @@ fun LabTab(
                             "Bind süresi",
                             if (shizukuDiagnostics.bindDurationMs >= 0L) "${shizukuDiagnostics.bindDurationMs} ms" else "Henüz tamamlanmadı"
                         )
+                        DiagLine("Bind başlangıcı", diagnosticTime(shizukuDiagnostics.bindStartedAtMs))
+                        DiagLine("Bind bitişi", diagnosticTime(shizukuDiagnostics.bindFinishedAtMs))
                         DiagLine("Son olay", shizukuDiagnostics.lastEvent)
                         DiagLine("Son callback", shizukuDiagnostics.lastCallback)
                         DiagLine("onServiceConnected", shizukuDiagnostics.onServiceConnectedResult)
@@ -156,7 +179,37 @@ fun LabTab(
                             color = if (shizukuDiagnostics.lastError == "Henüz hata ayrıntısı yok") cs.onSurfaceVariant else cs.error,
                             fontFamily = FontFamily.Monospace
                         )
+                        Text(
+                            text = "Olay zaman çizelgesi",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(top = 6.dp)
+                        )
+                        if (shizukuDiagnostics.eventTimeline.isEmpty()) {
+                            Text(
+                                text = "Henüz olay kaydı yok",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = cs.onSurfaceVariant
+                            )
+                        } else {
+                            shizukuDiagnostics.eventTimeline.takeLast(20).forEach { item ->
+                                Text(
+                                    text = "${diagnosticTime(item.timestampMs)} [${item.severity}] ${item.event}: ${item.detail}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = cs.onSurfaceVariant,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
                     }
+                }
+                OutlinedButton(
+                    onClick = {
+                        exportDiagnosticsLauncher.launch("zerointerrupt-shizuku-diagnostics.txt")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Teşhis kayıtlarını metin dosyası olarak dışa aktar")
                 }
             }
         }

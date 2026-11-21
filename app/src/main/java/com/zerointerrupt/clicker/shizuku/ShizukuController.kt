@@ -32,8 +32,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
 import rikka.shizuku.Shizuku
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 enum class ShizukuConnectionState {
     SHIZUKU_NOT_RUNNING,
@@ -83,7 +87,17 @@ data class ShizukuDiagnostics(
     val onServiceConnectedResult: String = "Henüz çağrılmadı",
     val onServiceDisconnectedResult: String = "Henüz çağrılmadı",
     val onBindingDiedResult: String = "Henüz çağrılmadı",
-    val onNullBindingResult: String = "Henüz çağrılmadı"
+    val onNullBindingResult: String = "Henüz çağrılmadı",
+    val bindStartedAtMs: Long = -1L,
+    val bindFinishedAtMs: Long = -1L,
+    val eventTimeline: List<ShizukuDiagnosticEvent> = emptyList()
+)
+
+data class ShizukuDiagnosticEvent(
+    val timestampMs: Long,
+    val event: String,
+    val detail: String,
+    val severity: String
 )
 
 /**
@@ -92,6 +106,7 @@ data class ShizukuDiagnostics(
 object ShizukuController {
     private const val TAG = "ShizukuBaglanti"
     private const val DIAGNOSTICS_PREFS = "shizuku_diagnostics"
+    private const val MAX_TIMELINE_EVENTS = 100
     const val REQUEST_CODE_SHIZUKU = 10042
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -485,7 +500,8 @@ object ShizukuController {
         error: String,
         throwable: Throwable? = null,
         callbackName: String? = null,
-        bindStatus: String? = null
+        bindStatus: String? = null,
+        timelineDetail: String? = null
     ) {
         var binderError = ""
         val binderAlive = try {
@@ -522,11 +538,24 @@ object ShizukuController {
         val previous = _diagnostics.value
         val exceptionClass = throwable?.javaClass?.name.orEmpty()
         val exceptionMessage = throwable?.message.orEmpty()
+        val nowMs = System.currentTimeMillis()
+        val severity = when {
+            effectiveError.isNotBlank() || bindStatus?.contains("Timeout") == true -> "ERROR"
+            bindStatus == "Bağlandı" -> "SUCCESS"
+            else -> "INFO"
+        }
+        val timeline = (previous.eventTimeline + ShizukuDiagnosticEvent(
+            timestampMs = nowMs,
+            event = event,
+            detail = timelineDetail ?: effectiveError.ifBlank { error }.ifBlank { "Durum kaydı" },
+            severity = severity
+        )).takeLast(MAX_TIMELINE_EVENTS)
         val durationMs = if (bindStatus != null && bindStatus != "Devam ediyor" && bindStartedAtMs > 0L) {
-            System.currentTimeMillis() - bindStartedAtMs
+            nowMs - bindStartedAtMs
         } else {
             previous.bindDurationMs
         }
+        val bindFinished = bindStatus != null && bindStatus != "Devam ediyor"
         val current = ShizukuDiagnostics(
             binderAlive = binderAlive,
             permissionGranted = permissionGranted,
@@ -543,7 +572,10 @@ object ShizukuController {
             onServiceConnectedResult = previous.onServiceConnectedResult,
             onServiceDisconnectedResult = previous.onServiceDisconnectedResult,
             onBindingDiedResult = previous.onBindingDiedResult,
-            onNullBindingResult = previous.onNullBindingResult
+            onNullBindingResult = previous.onNullBindingResult,
+            bindStartedAtMs = if (bindStartedAtMs > 0L) bindStartedAtMs else previous.bindStartedAtMs,
+            bindFinishedAtMs = if (bindFinished) nowMs else previous.bindFinishedAtMs,
+            eventTimeline = timeline
         )
         val withCallback = callbackName?.let { callback ->
             current.copy(
@@ -571,12 +603,29 @@ object ShizukuController {
             event = name,
             error = if (result.startsWith("HATA")) result else "",
             callbackName = "$name: $result",
-            bindStatus = current.bindStatus
+            bindStatus = current.bindStatus,
+            timelineDetail = result
         )
     }
 
     private fun loadPersistedDiagnostics() {
         val prefs = appContext?.getSharedPreferences(DIAGNOSTICS_PREFS, Context.MODE_PRIVATE) ?: return
+        val timeline = runCatching {
+            val json = JSONArray(prefs.getString("eventTimeline", "[]"))
+            buildList {
+                for (i in 0 until json.length()) {
+                    val item = json.getJSONObject(i)
+                    add(
+                        ShizukuDiagnosticEvent(
+                            timestampMs = item.optLong("timestampMs", -1L),
+                            event = item.optString("event", "Bilinmeyen olay"),
+                            detail = item.optString("detail", "Durum kaydı"),
+                            severity = item.optString("severity", "INFO")
+                        )
+                    )
+                }
+            }
+        }.getOrDefault(emptyList())
         _diagnostics.value = ShizukuDiagnostics(
             binderAlive = prefs.getBoolean("binderAlive", false),
             permissionGranted = prefs.getBoolean("permissionGranted", false),
@@ -595,7 +644,10 @@ object ShizukuController {
             onServiceConnectedResult = prefs.getString("onServiceConnectedResult", "Henüz çağrılmadı") ?: "Henüz çağrılmadı",
             onServiceDisconnectedResult = prefs.getString("onServiceDisconnectedResult", "Henüz çağrılmadı") ?: "Henüz çağrılmadı",
             onBindingDiedResult = prefs.getString("onBindingDiedResult", "Henüz çağrılmadı") ?: "Henüz çağrılmadı",
-            onNullBindingResult = prefs.getString("onNullBindingResult", "Henüz çağrılmadı") ?: "Henüz çağrılmadı"
+            onNullBindingResult = prefs.getString("onNullBindingResult", "Henüz çağrılmadı") ?: "Henüz çağrılmadı",
+            bindStartedAtMs = prefs.getLong("bindStartedAtMs", -1L),
+            bindFinishedAtMs = prefs.getLong("bindFinishedAtMs", -1L),
+            eventTimeline = timeline
         )
     }
 
@@ -617,7 +669,53 @@ object ShizukuController {
             ?.putString("onServiceDisconnectedResult", value.onServiceDisconnectedResult)
             ?.putString("onBindingDiedResult", value.onBindingDiedResult)
             ?.putString("onNullBindingResult", value.onNullBindingResult)
+            ?.putLong("bindStartedAtMs", value.bindStartedAtMs)
+            ?.putLong("bindFinishedAtMs", value.bindFinishedAtMs)
+            ?.putString("eventTimeline", JSONArray().apply {
+                value.eventTimeline.forEach { item ->
+                    put(JSONObject().apply {
+                        put("timestampMs", item.timestampMs)
+                        put("event", item.event)
+                        put("detail", item.detail)
+                        put("severity", item.severity)
+                    })
+                }
+            }.toString())
             ?.apply()
+    }
+
+    fun exportDiagnosticsText(): String {
+        val value = _diagnostics.value
+        val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
+        fun time(ms: Long): String = if (ms > 0L) format.format(Date(ms)) else "Henüz yok"
+        fun line(label: String, content: String): String = "$label: $content"
+        return buildString {
+            appendLine("ZeroInterruptClicker Shizuku teşhis kaydı")
+            appendLine(line("Dışa aktarma zamanı", time(System.currentTimeMillis())))
+            appendLine(line("Shizuku binder", value.binderAlive.toString()))
+            appendLine(line("Shizuku izni", value.permissionGranted.toString()))
+            appendLine(line("UserService binder", value.userServiceBinderAlive.toString()))
+            appendLine(line("Bağlantı durumu", value.connectionState.name))
+            appendLine(line("Shizuku API sürümü", value.shizukuVersion.toString()))
+            appendLine(line("Bind durumu", value.bindStatus))
+            appendLine(line("Bind başlangıcı", time(value.bindStartedAtMs)))
+            appendLine(line("Bind bitişi", time(value.bindFinishedAtMs)))
+            appendLine(line("Bind süresi", if (value.bindDurationMs >= 0L) "${value.bindDurationMs} ms" else "Henüz tamamlanmadı"))
+            appendLine(line("Son olay", value.lastEvent))
+            appendLine(line("Son hata", value.lastError))
+            appendLine(line("Son callback", value.lastCallback))
+            appendLine(line("Exception sınıfı", value.exceptionClass.ifBlank { "Yok" }))
+            appendLine(line("Exception mesajı", value.exceptionMessage.ifBlank { "Yok" }))
+            appendLine()
+            appendLine("Olay zaman çizelgesi:")
+            if (value.eventTimeline.isEmpty()) {
+                appendLine("Henüz olay kaydı yok")
+            } else {
+                value.eventTimeline.forEach { item ->
+                    appendLine("${time(item.timestampMs)} [${item.severity}] ${item.event}: ${item.detail}")
+                }
+            }
+        }
     }
 
     private fun scheduleRebind() {
