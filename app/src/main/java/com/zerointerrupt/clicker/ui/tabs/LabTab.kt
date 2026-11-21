@@ -173,6 +173,7 @@ fun LabTab(
                         DiagLine("onNullBinding", shizukuDiagnostics.onNullBindingResult)
                         DiagLine("Exception sınıfı", shizukuDiagnostics.exceptionClass.ifBlank { "Henüz exception yok" })
                         DiagLine("Exception mesajı", shizukuDiagnostics.exceptionMessage.ifBlank { "Henüz exception yok" })
+                        DiagLine("Log kayıt kapsamı", shizukuDiagnostics.logCaptureStatus)
                         Text(
                             text = "Son hata: ${shizukuDiagnostics.lastError}",
                             style = MaterialTheme.typography.labelSmall,

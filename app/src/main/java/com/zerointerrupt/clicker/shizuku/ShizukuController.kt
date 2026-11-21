@@ -82,6 +82,7 @@ data class ShizukuDiagnostics(
     val lastCallback: String = "Henüz callback çağrılmadı",
     val exceptionClass: String = "",
     val exceptionMessage: String = "",
+    val logCaptureStatus: String = "Logcat erişimi yok; yalnızca uygulamanın gözlemlediği Shizuku olayları kaydediliyor",
     val bindStatus: String = "Başlatılmadı",
     val bindDurationMs: Long = -1L,
     val onServiceConnectedResult: String = "Henüz çağrılmadı",
@@ -639,6 +640,10 @@ object ShizukuController {
             lastCallback = prefs.getString("lastCallback", "Henüz callback çağrılmadı") ?: "Henüz callback çağrılmadı",
             exceptionClass = prefs.getString("exceptionClass", "") ?: "",
             exceptionMessage = prefs.getString("exceptionMessage", "") ?: "",
+            logCaptureStatus = prefs.getString(
+                "logCaptureStatus",
+                "Logcat erişimi yok; yalnızca uygulamanın gözlemlediği Shizuku olayları kaydediliyor"
+            ) ?: "Logcat erişimi yok; yalnızca uygulamanın gözlemlediği Shizuku olayları kaydediliyor",
             bindStatus = prefs.getString("bindStatus", "Başlatılmadı") ?: "Başlatılmadı",
             bindDurationMs = prefs.getLong("bindDurationMs", -1L),
             onServiceConnectedResult = prefs.getString("onServiceConnectedResult", "Henüz çağrılmadı") ?: "Henüz çağrılmadı",
@@ -663,6 +668,7 @@ object ShizukuController {
             ?.putString("lastCallback", value.lastCallback)
             ?.putString("exceptionClass", value.exceptionClass)
             ?.putString("exceptionMessage", value.exceptionMessage)
+            ?.putString("logCaptureStatus", value.logCaptureStatus)
             ?.putString("bindStatus", value.bindStatus)
             ?.putLong("bindDurationMs", value.bindDurationMs)
             ?.putString("onServiceConnectedResult", value.onServiceConnectedResult)
@@ -706,6 +712,7 @@ object ShizukuController {
             appendLine(line("Son callback", value.lastCallback))
             appendLine(line("Exception sınıfı", value.exceptionClass.ifBlank { "Yok" }))
             appendLine(line("Exception mesajı", value.exceptionMessage.ifBlank { "Yok" }))
+            appendLine(line("Log kayıt kapsamı", value.logCaptureStatus))
             appendLine()
             appendLine("Olay zaman çizelgesi:")
             if (value.eventTimeline.isEmpty()) {
