@@ -80,7 +80,9 @@ object ShizukuController {
     private var listenersRegistered = false
     private var boundArgs: Shizuku.UserServiceArgs? = null
     private var bindTimeoutJob: Job? = null
-    private const val BIND_TIMEOUT_MS = 3_000L
+    private var unbindInProgress = false
+    private var permissionRequestInFlight = false
+    private const val BIND_TIMEOUT_MS = 10_000L
     @Volatile
     private var service: ITouchMuxService? = null
 
@@ -131,18 +133,13 @@ object ShizukuController {
     }
 
     private val binderDeadListener = Shizuku.OnBinderDeadListener {
-        Log.w(TAG, "Shizuku binder died; resetting service reference.")
-        service = null
-        _slotStates.value = List(16) { 0 }
-        _connectionState.value = ShizukuConnectionState.SHIZUKU_NOT_RUNNING
-        _engineSnapshot.value = _engineSnapshot.value.copy(
-            engineMode = TouchMuxUserService.MODE_IDLE,
-            statusDetail = "Shizuku hizmeti bağlantısı kesildi, yeniden bağlanması bekleniyor"
-        )
+        Log.w(TAG, "Shizuku binder died; clearing UserService connection.")
+        failUserServiceConnection("Shizuku bağlantısı kesildi. Lütfen yeniden deneyin.")
     }
 
     private val permissionResultListener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
         if (requestCode == REQUEST_CODE_SHIZUKU) {
+            permissionRequestInFlight = false
             if (grantResult == PackageManager.PERMISSION_GRANTED) {
                 bindUserService()
             } else {
@@ -159,10 +156,7 @@ object ShizukuController {
             bindTimeoutJob?.cancel()
             bindTimeoutJob = null
             if (binder == null || !binder.pingBinder()) {
-                _connectionState.value = ShizukuConnectionState.ERROR
-                _engineSnapshot.value = _engineSnapshot.value.copy(
-                    statusDetail = "UserService Binder geçersiz"
-                )
+                failUserServiceConnection("Shizuku UserService Binder geçersiz.")
                 return
             }
             val svc = ITouchMuxService.Stub.asInterface(binder)
@@ -180,13 +174,7 @@ object ShizukuController {
             try {
                 binder.linkToDeath({
                     Log.w(TAG, "TouchMuxUserService remote process died.")
-                    service = null
-                    _slotStates.value = List(16) { 0 }
-                    if (Shizuku.pingBinder() && hasPermission()) {
-                        bindUserService()
-                    } else {
-                        _connectionState.value = ShizukuConnectionState.SHIZUKU_NOT_RUNNING
-                    }
+                    failUserServiceConnection("Shizuku UserService bağlantısı kesildi. Lütfen yeniden deneyin.")
                 }, 0)
             } catch (_: Throwable) {
             }
@@ -194,13 +182,8 @@ object ShizukuController {
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
-            service = null
-            _slotStates.value = List(16) { 0 }
-            if (Shizuku.pingBinder() && hasPermission()) {
-                bindUserService()
-            } else {
-                _connectionState.value = ShizukuConnectionState.SHIZUKU_NOT_RUNNING
-            }
+            if (unbindInProgress) return
+            failUserServiceConnection("Shizuku UserService bağlantısı kesildi. Lütfen yeniden deneyin.")
         }
     }
 
@@ -233,6 +216,7 @@ object ShizukuController {
         if (!hasPermission()) {
             _connectionState.value = ShizukuConnectionState.NO_PERMISSION
             _engineSnapshot.value = EngineSnapshot(statusDetail = "Shizuku İzni Gerekli")
+            requestPermission()
             return
         }
         if (service?.asBinder()?.pingBinder() == true) {
@@ -266,8 +250,11 @@ object ShizukuController {
                 bindUserService()
                 return
             }
+            if (permissionRequestInFlight) return
+            permissionRequestInFlight = true
             Shizuku.requestPermission(REQUEST_CODE_SHIZUKU)
         } catch (t: Throwable) {
+            permissionRequestInFlight = false
             _connectionState.value = ShizukuConnectionState.ERROR
             _engineSnapshot.value = _engineSnapshot.value.copy(
                 statusDetail = "Shizuku izni isteği başarısız: ${t.message}"
@@ -303,10 +290,7 @@ object ShizukuController {
                 delay(BIND_TIMEOUT_MS)
                 if (_connectionState.value == ShizukuConnectionState.BINDING && service == null) {
                     Log.e(TAG, "Timed out waiting for Shizuku UserService connection")
-                    _connectionState.value = ShizukuConnectionState.ERROR
-                    _engineSnapshot.value = _engineSnapshot.value.copy(
-                        statusDetail = "Bağlantı Başarısız: Shizuku UserService 3 saniye içinde bağlanamadı."
-                    )
+                    failUserServiceConnection("Bağlantı Başarısız: Shizuku UserService 10 saniye içinde bağlanamadı.")
                 }
                 bindTimeoutJob = null
             }
@@ -319,6 +303,31 @@ object ShizukuController {
                 statusDetail = "UserService bağlanamadı: ${t.message}"
             )
         }
+    }
+
+    private fun failUserServiceConnection(detail: String) {
+        bindTimeoutJob?.cancel()
+        bindTimeoutJob = null
+        service = null
+        _slotStates.value = List(16) { 0 }
+
+        val args = boundArgs
+        if (args != null && !unbindInProgress) {
+            unbindInProgress = true
+            try {
+                Shizuku.unbindUserService(args, userServiceConnection, true)
+            } catch (t: Throwable) {
+                Log.w(TAG, "Failed to unbind Shizuku UserService", t)
+            } finally {
+                unbindInProgress = false
+            }
+        }
+
+        _connectionState.value = ShizukuConnectionState.ERROR
+        _engineSnapshot.value = _engineSnapshot.value.copy(
+            engineMode = TouchMuxUserService.MODE_IDLE,
+            statusDetail = detail
+        )
     }
 
     fun refreshCapabilitiesAsync() {
