@@ -81,6 +81,9 @@ object ShizukuController {
     private var boundArgs: Shizuku.UserServiceArgs? = null
     private var bindTimeoutJob: Job? = null
     private const val BIND_TIMEOUT_MS = 5_000L
+    private const val REBIND_DELAY_MS = 250L
+    private val bindLock = Any()
+    private var bindInFlight = false
     @Volatile
     private var service: ITouchMuxService? = null
 
@@ -135,12 +138,16 @@ object ShizukuController {
         Log.d(TAG, "Shizuku binder öldü; bağlantı temizleniyor")
         Log.w(TAG, "Shizuku binder died; resetting service reference.")
         service = null
+        bindTimeoutJob?.cancel()
+        bindTimeoutJob = null
+        synchronized(bindLock) { bindInFlight = false }
         _slotStates.value = List(16) { 0 }
         _connectionState.value = ShizukuConnectionState.ERROR
         _engineSnapshot.value = _engineSnapshot.value.copy(
             engineMode = TouchMuxUserService.MODE_IDLE,
             statusDetail = "Bağlantı Koptu: Shizuku binder bağlantısı kesildi"
         )
+        scheduleRebind()
     }
 
     private val permissionResultListener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
@@ -164,15 +171,11 @@ object ShizukuController {
             bindTimeoutJob?.cancel()
             bindTimeoutJob = null
             if (binder == null || !binder.pingBinder()) {
-                _connectionState.value = ShizukuConnectionState.ERROR
-                _engineSnapshot.value = _engineSnapshot.value.copy(
-                    statusDetail = "UserService Binder geçersiz"
-                )
+                failBinding("UserService Binder geçersiz veya ölü")
                 return
             }
             val svc = ITouchMuxService.Stub.asInterface(binder)
             service = svc
-            _connectionState.value = ShizukuConnectionState.CONNECTED
             try {
                 svc.registerCallback(serviceCallback)
                 appContext?.let { ctx ->
@@ -180,21 +183,29 @@ object ShizukuController {
                     svc.setVolumeKeyControlEnabled(settings.volumeKeyToggleEnabled)
                     svc.setPreferredBackend(settings.preferredBackend)
                 }
-            } catch (_: Throwable) {
+            } catch (t: Throwable) {
+                service = null
+                failBinding("UserService el sıkışması başarısız: ${t.javaClass.simpleName}: ${t.message ?: "mesaj yok"}")
+                return
             }
+            synchronized(bindLock) { bindInFlight = false }
+            _connectionState.value = ShizukuConnectionState.CONNECTED
             try {
                 binder.linkToDeath({
                     Log.d(TAG, "TouchMuxUserService binder öldü; bağlantı temizleniyor")
                     Log.w(TAG, "TouchMuxUserService remote process died.")
                     service = null
+                    synchronized(bindLock) { bindInFlight = false }
                     _slotStates.value = List(16) { 0 }
                     _connectionState.value = ShizukuConnectionState.ERROR
                     _engineSnapshot.value = _engineSnapshot.value.copy(
                         engineMode = TouchMuxUserService.MODE_IDLE,
                         statusDetail = "Bağlantı Koptu: Shizuku UserService binder bağlantısı kesildi"
                     )
+                    scheduleRebind()
                 }, 0)
-            } catch (_: Throwable) {
+            } catch (t: Throwable) {
+                Log.w(TAG, "UserService binder ölüm bildirimi kaydedilemedi", t)
             }
             refreshCapabilitiesAsync()
         }
@@ -202,12 +213,14 @@ object ShizukuController {
         override fun onServiceDisconnected(name: ComponentName?) {
             Log.d(TAG, "UserService onServiceDisconnected çağrıldı")
             service = null
+            synchronized(bindLock) { bindInFlight = false }
             _slotStates.value = List(16) { 0 }
             _connectionState.value = ShizukuConnectionState.ERROR
             _engineSnapshot.value = _engineSnapshot.value.copy(
                 engineMode = TouchMuxUserService.MODE_IDLE,
                 statusDetail = "Bağlantı Koptu: Shizuku UserService bağlantısı kesildi"
             )
+            scheduleRebind()
         }
     }
 
@@ -304,7 +317,13 @@ object ShizukuController {
             _connectionState.value = ShizukuConnectionState.CONNECTED
             return
         }
-        if (_connectionState.value == ShizukuConnectionState.BINDING) return
+        synchronized(bindLock) {
+            if (bindInFlight) {
+                Log.d(TAG, "UserService bind zaten devam ediyor")
+                return
+            }
+            bindInFlight = true
+        }
         _connectionState.value = ShizukuConnectionState.BINDING
         val args = boundArgs ?: Shizuku.UserServiceArgs(
             ComponentName(ctx.packageName, TouchMuxUserService::class.java.name)
@@ -321,7 +340,15 @@ object ShizukuController {
             bindTimeoutJob?.cancel()
             bindTimeoutJob = scope.launch {
                 delay(BIND_TIMEOUT_MS)
-                if (_connectionState.value == ShizukuConnectionState.BINDING && service == null) {
+                val timedOut = synchronized(bindLock) {
+                    if (bindInFlight && service == null) {
+                        bindInFlight = false
+                        true
+                    } else {
+                        false
+                    }
+                }
+                if (timedOut) {
                     Log.d(TAG, "UserService bağlantı timeout: 5 saniye")
                     Log.e(TAG, "Timed out waiting for Shizuku UserService connection")
                     unbindUserService()
@@ -336,11 +363,25 @@ object ShizukuController {
             Log.e(TAG, "Shizuku.bindUserService başarısız", t)
             bindTimeoutJob?.cancel()
             bindTimeoutJob = null
-            Log.e(TAG, "bindUserService error", t)
-            _connectionState.value = ShizukuConnectionState.ERROR
-            _engineSnapshot.value = _engineSnapshot.value.copy(
-                statusDetail = "UserService bağlanamadı: ${t.message}"
-            )
+            synchronized(bindLock) { bindInFlight = false }
+            failBinding("UserService bind çağrısı başarısız: ${t.javaClass.simpleName}: ${t.message ?: "mesaj yok"}")
+        }
+    }
+
+    private fun failBinding(detail: String) {
+        synchronized(bindLock) { bindInFlight = false }
+        _connectionState.value = ShizukuConnectionState.ERROR
+        _engineSnapshot.value = _engineSnapshot.value.copy(statusDetail = detail)
+        Log.e(TAG, detail)
+    }
+
+    private fun scheduleRebind() {
+        scope.launch {
+            delay(REBIND_DELAY_MS)
+            if (Shizuku.pingBinder() && hasPermission() && service?.asBinder()?.pingBinder() != true) {
+                Log.i(TAG, "Shizuku UserService yeniden bağlanıyor")
+                bindUserService()
+            }
         }
     }
 
@@ -750,6 +791,9 @@ object ShizukuController {
 
     fun unbindUserService() {
         val args = boundArgs ?: return
+        bindTimeoutJob?.cancel()
+        bindTimeoutJob = null
+        synchronized(bindLock) { bindInFlight = false }
         try {
             service?.shutdownEngine()
         } catch (_: Throwable) {
