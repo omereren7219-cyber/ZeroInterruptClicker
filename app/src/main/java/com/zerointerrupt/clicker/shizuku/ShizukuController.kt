@@ -74,7 +74,16 @@ data class ShizukuDiagnostics(
     val connectionState: ShizukuConnectionState = ShizukuConnectionState.SHIZUKU_NOT_RUNNING,
     val shizukuVersion: Int = -1,
     val lastEvent: String = "Henüz tanı çalıştırılmadı",
-    val lastError: String = ""
+    val lastError: String = "Henüz hata ayrıntısı yok",
+    val lastCallback: String = "Henüz callback çağrılmadı",
+    val exceptionClass: String = "",
+    val exceptionMessage: String = "",
+    val bindStatus: String = "Başlatılmadı",
+    val bindDurationMs: Long = -1L,
+    val onServiceConnectedResult: String = "Henüz çağrılmadı",
+    val onServiceDisconnectedResult: String = "Henüz çağrılmadı",
+    val onBindingDiedResult: String = "Henüz çağrılmadı",
+    val onNullBindingResult: String = "Henüz çağrılmadı"
 )
 
 /**
@@ -82,6 +91,7 @@ data class ShizukuDiagnostics(
  */
 object ShizukuController {
     private const val TAG = "ShizukuBaglanti"
+    private const val DIAGNOSTICS_PREFS = "shizuku_diagnostics"
     const val REQUEST_CODE_SHIZUKU = 10042
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -90,6 +100,7 @@ object ShizukuController {
     private var listenersRegistered = false
     private var boundArgs: Shizuku.UserServiceArgs? = null
     private var bindTimeoutJob: Job? = null
+    private var bindStartedAtMs = 0L
     private const val BIND_TIMEOUT_MS = 5_000L
     private const val REBIND_DELAY_MS = 250L
     private val bindLock = Any()
@@ -186,9 +197,11 @@ object ShizukuController {
     private val userServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             Log.d(TAG, "UserService onServiceConnected çağrıldı: $name")
+            recordCallback("onServiceConnected", "ÇAĞRILDI: component=$name")
             bindTimeoutJob?.cancel()
             bindTimeoutJob = null
             if (binder == null || !binder.pingBinder()) {
+                recordCallback("onServiceConnected", "HATA: binder geçersiz veya ölü")
                 failBinding("onServiceConnected binder geçersiz veya ölü: component=$name")
                 return
             }
@@ -203,12 +216,17 @@ object ShizukuController {
                 }
             } catch (t: Throwable) {
                 service = null
-                failBinding("UserService el sıkışması başarısız: ${t.javaClass.simpleName}: ${t.message ?: "mesaj yok"}")
+                recordCallback("onServiceConnected", "HATA: ${t.javaClass.simpleName}: ${t.message ?: "mesaj yok"}")
+                failBinding(
+                    "UserService el sıkışması başarısız: ${t.javaClass.simpleName}: ${t.message ?: "mesaj yok"}",
+                    t
+                )
                 return
             }
             synchronized(bindLock) { bindInFlight = false }
             _connectionState.value = ShizukuConnectionState.CONNECTED
-            publishDiagnostics("UserService bağlandı", "")
+            recordCallback("onServiceConnected", "BAŞARILI: AIDL el sıkışması tamamlandı")
+            publishDiagnostics("UserService bağlandı", "", bindStatus = "Bağlandı")
             try {
                 binder.linkToDeath({
                     Log.d(TAG, "TouchMuxUserService binder öldü; bağlantı temizleniyor")
@@ -232,6 +250,7 @@ object ShizukuController {
 
         override fun onServiceDisconnected(name: ComponentName?) {
             Log.d(TAG, "UserService onServiceDisconnected çağrıldı: $name")
+            recordCallback("onServiceDisconnected", "ÇAĞRILDI: component=$name")
             service = null
             synchronized(bindLock) { bindInFlight = false }
             _slotStates.value = List(16) { 0 }
@@ -242,13 +261,15 @@ object ShizukuController {
             )
             publishDiagnostics(
                 "UserService bağlantısı koptu",
-                "onServiceDisconnected çağrıldı: component=$name"
+                "onServiceDisconnected çağrıldı: component=$name",
+                bindStatus = "Koptu"
             )
             scheduleRebind()
         }
 
         override fun onBindingDied(name: ComponentName) {
             Log.e(TAG, "UserService onBindingDied çağrıldı: component=$name")
+            recordCallback("onBindingDied", "ÇAĞRILDI: component=$name")
             service = null
             synchronized(bindLock) { bindInFlight = false }
             _slotStates.value = List(16) { 0 }
@@ -259,13 +280,15 @@ object ShizukuController {
             )
             publishDiagnostics(
                 "UserService binding öldü",
-                "onBindingDied çağrıldı: component=$name"
+                "onBindingDied çağrıldı: component=$name",
+                bindStatus = "Koptu"
             )
             scheduleRebind()
         }
 
         override fun onNullBinding(name: ComponentName) {
             Log.e(TAG, "UserService onNullBinding çağrıldı: component=$name")
+            recordCallback("onNullBinding", "ÇAĞRILDI: component=$name")
             service = null
             synchronized(bindLock) { bindInFlight = false }
             _slotStates.value = List(16) { 0 }
@@ -276,7 +299,8 @@ object ShizukuController {
             )
             publishDiagnostics(
                 "UserService null binder",
-                "onNullBinding çağrıldı: component=$name"
+                "onNullBinding çağrıldı: component=$name",
+                bindStatus = "Hata"
             )
             scheduleRebind()
         }
@@ -286,6 +310,7 @@ object ShizukuController {
         Log.d(TAG, "Shizuku initialize başlatıldı")
         if (appContext == null) {
             appContext = context.applicationContext
+            loadPersistedDiagnostics()
         }
         if (!listenersRegistered) {
             Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
@@ -385,7 +410,8 @@ object ShizukuController {
             bindInFlight = true
         }
         _connectionState.value = ShizukuConnectionState.BINDING
-        publishDiagnostics("Shizuku.bindUserService çağrıldı", "")
+        bindStartedAtMs = System.currentTimeMillis()
+        publishDiagnostics("Shizuku.bindUserService çağrıldı", "", bindStatus = "Devam ediyor")
         val args = boundArgs ?: Shizuku.UserServiceArgs(
             ComponentName(ctx.packageName, TouchMuxUserService::class.java.name)
         )
@@ -417,7 +443,11 @@ object ShizukuController {
                     _engineSnapshot.value = _engineSnapshot.value.copy(
                         statusDetail = "Bağlantı Zaman Aşımı: Shizuku UserService 5 saniye içinde bağlanamadı"
                     )
-                    publishDiagnostics("UserService bind zaman aşımı", "onServiceConnected 5 saniye içinde çağrılmadı")
+                    publishDiagnostics(
+                        "UserService bind zaman aşımı",
+                        "onServiceConnected 5 saniye içinde çağrılmadı",
+                        bindStatus = "Timeout (5000 ms)"
+                    )
                 }
                 bindTimeoutJob = null
             }
@@ -426,23 +456,37 @@ object ShizukuController {
             bindTimeoutJob?.cancel()
             bindTimeoutJob = null
             synchronized(bindLock) { bindInFlight = false }
-            failBinding("UserService bind çağrısı başarısız: ${t.javaClass.simpleName}: ${t.message ?: "mesaj yok"}")
+            failBinding(
+                "UserService bind çağrısı başarısız: ${t.javaClass.simpleName}: ${t.message ?: "mesaj yok"}",
+                t
+            )
         }
     }
 
-    private fun failBinding(detail: String) {
+    private fun failBinding(detail: String, throwable: Throwable? = null) {
         synchronized(bindLock) { bindInFlight = false }
         _connectionState.value = ShizukuConnectionState.ERROR
         _engineSnapshot.value = _engineSnapshot.value.copy(statusDetail = detail)
         Log.e(TAG, detail)
-        publishDiagnostics("UserService bind başarısız", detail)
+        publishDiagnostics(
+            event = "UserService bind başarısız",
+            error = detail,
+            throwable = throwable,
+            bindStatus = "Hata"
+        )
     }
 
     fun refreshShizukuDiagnostics() {
         publishDiagnostics("Manuel tanı yenilendi", "")
     }
 
-    private fun publishDiagnostics(event: String, error: String) {
+    private fun publishDiagnostics(
+        event: String,
+        error: String,
+        throwable: Throwable? = null,
+        callbackName: String? = null,
+        bindStatus: String? = null
+    ) {
         var binderError = ""
         val binderAlive = try {
             Shizuku.pingBinder()
@@ -473,23 +517,107 @@ object ShizukuController {
         val probeError = listOf(binderError, permissionError, serviceError)
             .filter { it.isNotBlank() }
             .joinToString("; ")
+        val manualRefresh = event == "Manuel tanı yenilendi"
         val effectiveError = error.ifBlank { probeError }
+        val previous = _diagnostics.value
+        val exceptionClass = throwable?.javaClass?.name.orEmpty()
+        val exceptionMessage = throwable?.message.orEmpty()
+        val durationMs = if (bindStatus != null && bindStatus != "Devam ediyor" && bindStartedAtMs > 0L) {
+            System.currentTimeMillis() - bindStartedAtMs
+        } else {
+            previous.bindDurationMs
+        }
         val current = ShizukuDiagnostics(
             binderAlive = binderAlive,
             permissionGranted = permissionGranted,
             userServiceBinderAlive = serviceAlive,
             connectionState = _connectionState.value,
             shizukuVersion = version,
-            lastEvent = event,
-            lastError = effectiveError
+            lastEvent = if (manualRefresh) previous.lastEvent else event,
+            lastError = if (manualRefresh) previous.lastError else effectiveError.ifBlank { "Henüz hata ayrıntısı yok" },
+            lastCallback = previous.lastCallback,
+            exceptionClass = if (manualRefresh) previous.exceptionClass else exceptionClass,
+            exceptionMessage = if (manualRefresh) previous.exceptionMessage else exceptionMessage,
+            bindStatus = bindStatus ?: previous.bindStatus,
+            bindDurationMs = durationMs,
+            onServiceConnectedResult = previous.onServiceConnectedResult,
+            onServiceDisconnectedResult = previous.onServiceDisconnectedResult,
+            onBindingDiedResult = previous.onBindingDiedResult,
+            onNullBindingResult = previous.onNullBindingResult
         )
-        _diagnostics.value = current
+        val withCallback = callbackName?.let { callback ->
+            current.copy(
+                lastCallback = callback,
+                onServiceConnectedResult = if (callback.startsWith("onServiceConnected")) callback else current.onServiceConnectedResult,
+                onServiceDisconnectedResult = if (callback.startsWith("onServiceDisconnected")) callback else current.onServiceDisconnectedResult,
+                onBindingDiedResult = if (callback.startsWith("onBindingDied")) callback else current.onBindingDiedResult,
+                onNullBindingResult = if (callback.startsWith("onNullBinding")) callback else current.onNullBindingResult
+            )
+        } ?: current
+        _diagnostics.value = withCallback
+        persistDiagnostics(withCallback)
         Log.i(
             TAG,
             "diag event=$event binderAlive=$binderAlive permissionGranted=$permissionGranted " +
                 "userServiceBinderAlive=$serviceAlive state=${current.connectionState} " +
-                "version=$version error=${effectiveError.ifBlank { "none" }}"
+                "version=$version error=${withCallback.lastError} " +
+                "exception=${withCallback.exceptionClass}: ${withCallback.exceptionMessage}"
         )
+    }
+
+    private fun recordCallback(name: String, result: String) {
+        val current = _diagnostics.value
+        publishDiagnostics(
+            event = name,
+            error = if (result.startsWith("HATA")) result else "",
+            callbackName = "$name: $result",
+            bindStatus = current.bindStatus
+        )
+    }
+
+    private fun loadPersistedDiagnostics() {
+        val prefs = appContext?.getSharedPreferences(DIAGNOSTICS_PREFS, Context.MODE_PRIVATE) ?: return
+        _diagnostics.value = ShizukuDiagnostics(
+            binderAlive = prefs.getBoolean("binderAlive", false),
+            permissionGranted = prefs.getBoolean("permissionGranted", false),
+            userServiceBinderAlive = prefs.getBoolean("userServiceBinderAlive", false),
+            connectionState = runCatching {
+                ShizukuConnectionState.valueOf(prefs.getString("connectionState", ShizukuConnectionState.ERROR.name)!!)
+            }.getOrDefault(ShizukuConnectionState.ERROR),
+            shizukuVersion = prefs.getInt("shizukuVersion", -1),
+            lastEvent = prefs.getString("lastEvent", "Henüz tanı çalıştırılmadı") ?: "Henüz tanı çalıştırılmadı",
+            lastError = prefs.getString("lastError", "Henüz hata ayrıntısı yok") ?: "Henüz hata ayrıntısı yok",
+            lastCallback = prefs.getString("lastCallback", "Henüz callback çağrılmadı") ?: "Henüz callback çağrılmadı",
+            exceptionClass = prefs.getString("exceptionClass", "") ?: "",
+            exceptionMessage = prefs.getString("exceptionMessage", "") ?: "",
+            bindStatus = prefs.getString("bindStatus", "Başlatılmadı") ?: "Başlatılmadı",
+            bindDurationMs = prefs.getLong("bindDurationMs", -1L),
+            onServiceConnectedResult = prefs.getString("onServiceConnectedResult", "Henüz çağrılmadı") ?: "Henüz çağrılmadı",
+            onServiceDisconnectedResult = prefs.getString("onServiceDisconnectedResult", "Henüz çağrılmadı") ?: "Henüz çağrılmadı",
+            onBindingDiedResult = prefs.getString("onBindingDiedResult", "Henüz çağrılmadı") ?: "Henüz çağrılmadı",
+            onNullBindingResult = prefs.getString("onNullBindingResult", "Henüz çağrılmadı") ?: "Henüz çağrılmadı"
+        )
+    }
+
+    private fun persistDiagnostics(value: ShizukuDiagnostics) {
+        appContext?.getSharedPreferences(DIAGNOSTICS_PREFS, Context.MODE_PRIVATE)?.edit()
+            ?.putBoolean("binderAlive", value.binderAlive)
+            ?.putBoolean("permissionGranted", value.permissionGranted)
+            ?.putBoolean("userServiceBinderAlive", value.userServiceBinderAlive)
+            ?.putString("connectionState", value.connectionState.name)
+            ?.putInt("shizukuVersion", value.shizukuVersion)
+            ?.putString("lastEvent", value.lastEvent)
+            ?.putString("lastError", value.lastError)
+            ?.putString("lastCallback", value.lastCallback)
+            ?.putString("exceptionClass", value.exceptionClass)
+            ?.putString("exceptionMessage", value.exceptionMessage)
+            ?.putString("bindStatus", value.bindStatus)
+            ?.putLong("bindDurationMs", value.bindDurationMs)
+            ?.putString("onServiceConnectedResult", value.onServiceConnectedResult)
+            ?.putString("onServiceDisconnectedResult", value.onServiceDisconnectedResult)
+            ?.putString("onBindingDiedResult", value.onBindingDiedResult)
+            ?.putString("onNullBindingResult", value.onNullBindingResult)
+            ?.apply()
     }
 
     private fun scheduleRebind() {

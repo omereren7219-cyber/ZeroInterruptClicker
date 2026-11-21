@@ -137,15 +137,25 @@ fun LabTab(
                         DiagLine("UserService binder", if (shizukuDiagnostics.userServiceBinderAlive) "CANLI" else "YOK")
                         DiagLine("Bağlantı durumu", shizukuDiagnostics.connectionState.name)
                         DiagLine("Shizuku API sürümü", shizukuDiagnostics.shizukuVersion.toString())
+                        DiagLine("Bind durumu", shizukuDiagnostics.bindStatus)
+                        DiagLine(
+                            "Bind süresi",
+                            if (shizukuDiagnostics.bindDurationMs >= 0L) "${shizukuDiagnostics.bindDurationMs} ms" else "Henüz tamamlanmadı"
+                        )
                         DiagLine("Son olay", shizukuDiagnostics.lastEvent)
-                        if (shizukuDiagnostics.lastError.isNotBlank()) {
-                            Text(
-                                text = "Son hata: ${shizukuDiagnostics.lastError}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = cs.error,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
+                        DiagLine("Son callback", shizukuDiagnostics.lastCallback)
+                        DiagLine("onServiceConnected", shizukuDiagnostics.onServiceConnectedResult)
+                        DiagLine("onServiceDisconnected", shizukuDiagnostics.onServiceDisconnectedResult)
+                        DiagLine("onBindingDied", shizukuDiagnostics.onBindingDiedResult)
+                        DiagLine("onNullBinding", shizukuDiagnostics.onNullBindingResult)
+                        DiagLine("Exception sınıfı", shizukuDiagnostics.exceptionClass.ifBlank { "Henüz exception yok" })
+                        DiagLine("Exception mesajı", shizukuDiagnostics.exceptionMessage.ifBlank { "Henüz exception yok" })
+                        Text(
+                            text = "Son hata: ${shizukuDiagnostics.lastError}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (shizukuDiagnostics.lastError == "Henüz hata ayrıntısı yok") cs.onSurfaceVariant else cs.error,
+                            fontFamily = FontFamily.Monospace
+                        )
                     }
                 }
             }
