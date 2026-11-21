@@ -474,6 +474,7 @@ object ShizukuController {
         _connectionState.value = ShizukuConnectionState.BINDING
         bindStartedAtMs = System.currentTimeMillis()
         publishDiagnostics("Shizuku.bindUserService çağrıldı", "", bindStatus = "Devam ediyor")
+        val previousArgs = boundArgs
         val args = boundArgs ?: Shizuku.UserServiceArgs(
             ComponentName(ctx.packageName, TouchMuxUserService::class.java.name)
         )
@@ -485,6 +486,19 @@ object ShizukuController {
             .also { boundArgs = it }
 
         try {
+            if (previousArgs != null) {
+                Log.i(TAG, "Önceki production UserService kaydı temizleniyor")
+                runCatching {
+                    Shizuku.unbindUserService(previousArgs, userServiceConnection, true)
+                }.onFailure { cleanupError ->
+                    Log.w(TAG, "Önceki production UserService kaydı temizlenemedi", cleanupError)
+                }
+                publishDiagnostics(
+                    "Önceki UserService kaydı temizlendi",
+                    "",
+                    timelineDetail = "Yeni bind öncesi remote UserService recreation istendi"
+                )
+            }
             Log.d(TAG, "Shizuku.bindUserService çağrılıyor")
             Shizuku.bindUserService(args, userServiceConnection)
             bindTimeoutJob?.cancel()
