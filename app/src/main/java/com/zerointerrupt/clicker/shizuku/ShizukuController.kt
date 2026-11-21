@@ -71,7 +71,7 @@ data class DisplayScreenMetrics(
  * Process-wide Shizuku UserService connection, permission, auto-rebind, and IPC controller.
  */
 object ShizukuController {
-    private const val TAG = "ShizukuController"
+    private const val TAG = "ShizukuBaglanti"
     const val REQUEST_CODE_SHIZUKU = 10042
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -80,7 +80,7 @@ object ShizukuController {
     private var listenersRegistered = false
     private var boundArgs: Shizuku.UserServiceArgs? = null
     private var bindTimeoutJob: Job? = null
-    private const val BIND_TIMEOUT_MS = 3_000L
+    private const val BIND_TIMEOUT_MS = 5_000L
     @Volatile
     private var service: ITouchMuxService? = null
 
@@ -126,24 +126,28 @@ object ShizukuController {
     }
 
     private val binderReceivedListener = Shizuku.OnBinderReceivedListener {
+        Log.d(TAG, "Shizuku binder alındı")
         Log.i(TAG, "Shizuku binder received.")
         evaluateShizukuState()
     }
 
     private val binderDeadListener = Shizuku.OnBinderDeadListener {
+        Log.d(TAG, "Shizuku binder öldü; bağlantı temizleniyor")
         Log.w(TAG, "Shizuku binder died; resetting service reference.")
         service = null
         _slotStates.value = List(16) { 0 }
-        _connectionState.value = ShizukuConnectionState.SHIZUKU_NOT_RUNNING
+        _connectionState.value = ShizukuConnectionState.ERROR
         _engineSnapshot.value = _engineSnapshot.value.copy(
             engineMode = TouchMuxUserService.MODE_IDLE,
-            statusDetail = "Shizuku hizmeti bağlantısı kesildi, yeniden bağlanması bekleniyor"
+            statusDetail = "Bağlantı Koptu: Shizuku binder bağlantısı kesildi"
         )
     }
 
     private val permissionResultListener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
         if (requestCode == REQUEST_CODE_SHIZUKU) {
+            Log.d(TAG, "Shizuku izin sonucu alındı: $grantResult")
             if (grantResult == PackageManager.PERMISSION_GRANTED) {
+                Log.d(TAG, "Shizuku izni verildi; UserService bind başlatılıyor")
                 bindUserService()
             } else {
                 _connectionState.value = ShizukuConnectionState.NO_PERMISSION
@@ -156,6 +160,7 @@ object ShizukuController {
 
     private val userServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+            Log.d(TAG, "UserService onServiceConnected çağrıldı")
             bindTimeoutJob?.cancel()
             bindTimeoutJob = null
             if (binder == null || !binder.pingBinder()) {
@@ -179,14 +184,15 @@ object ShizukuController {
             }
             try {
                 binder.linkToDeath({
+                    Log.d(TAG, "TouchMuxUserService binder öldü; bağlantı temizleniyor")
                     Log.w(TAG, "TouchMuxUserService remote process died.")
                     service = null
                     _slotStates.value = List(16) { 0 }
-                    if (Shizuku.pingBinder() && hasPermission()) {
-                        bindUserService()
-                    } else {
-                        _connectionState.value = ShizukuConnectionState.SHIZUKU_NOT_RUNNING
-                    }
+                    _connectionState.value = ShizukuConnectionState.ERROR
+                    _engineSnapshot.value = _engineSnapshot.value.copy(
+                        engineMode = TouchMuxUserService.MODE_IDLE,
+                        statusDetail = "Bağlantı Koptu: Shizuku UserService binder bağlantısı kesildi"
+                    )
                 }, 0)
             } catch (_: Throwable) {
             }
@@ -194,17 +200,19 @@ object ShizukuController {
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
+            Log.d(TAG, "UserService onServiceDisconnected çağrıldı")
             service = null
             _slotStates.value = List(16) { 0 }
-            if (Shizuku.pingBinder() && hasPermission()) {
-                bindUserService()
-            } else {
-                _connectionState.value = ShizukuConnectionState.SHIZUKU_NOT_RUNNING
-            }
+            _connectionState.value = ShizukuConnectionState.ERROR
+            _engineSnapshot.value = _engineSnapshot.value.copy(
+                engineMode = TouchMuxUserService.MODE_IDLE,
+                statusDetail = "Bağlantı Koptu: Shizuku UserService bağlantısı kesildi"
+            )
         }
     }
 
     fun initialize(context: Context) {
+        Log.d(TAG, "Shizuku initialize başlatıldı")
         if (appContext == null) {
             appContext = context.applicationContext
         }
@@ -224,6 +232,7 @@ object ShizukuController {
             false
         }
         if (!binderAlive) {
+            Log.d(TAG, "Shizuku binder bulunamadı")
             service = null
             _slotStates.value = List(16) { 0 }
             _connectionState.value = ShizukuConnectionState.SHIZUKU_NOT_RUNNING
@@ -231,8 +240,10 @@ object ShizukuController {
             return
         }
         if (!hasPermission()) {
+            Log.d(TAG, "Shizuku izni yok; izin isteniyor")
             _connectionState.value = ShizukuConnectionState.NO_PERMISSION
             _engineSnapshot.value = EngineSnapshot(statusDetail = "Shizuku İzni Gerekli")
+            requestPermission()
             return
         }
         if (service?.asBinder()?.pingBinder() == true) {
@@ -254,8 +265,10 @@ object ShizukuController {
     }
 
     fun requestPermission() {
+        Log.d(TAG, "Shizuku izin akışı başlatıldı")
         try {
             if (!Shizuku.pingBinder()) {
+                Log.d(TAG, "İzin isteği başarısız: Shizuku binder yok")
                 _connectionState.value = ShizukuConnectionState.SHIZUKU_NOT_RUNNING
                 _engineSnapshot.value = _engineSnapshot.value.copy(
                     statusDetail = "Shizuku hizmeti çalışmıyor"
@@ -263,11 +276,14 @@ object ShizukuController {
                 return
             }
             if (hasPermission()) {
+                Log.d(TAG, "Shizuku izni zaten mevcut; bind başlatılıyor")
                 bindUserService()
                 return
             }
+            Log.d(TAG, "Shizuku.requestPermission çağrılıyor")
             Shizuku.requestPermission(REQUEST_CODE_SHIZUKU)
         } catch (t: Throwable) {
+            Log.e(TAG, "Shizuku izin akışı başarısız", t)
             _connectionState.value = ShizukuConnectionState.ERROR
             _engineSnapshot.value = _engineSnapshot.value.copy(
                 statusDetail = "Shizuku izni isteği başarısız: ${t.message}"
@@ -276,12 +292,15 @@ object ShizukuController {
     }
 
     fun bindUserService() {
+        Log.d(TAG, "Shizuku.bindUserService hazırlığı başlatıldı")
         val ctx = appContext ?: return
         if (!Shizuku.pingBinder() || !hasPermission()) {
+            Log.d(TAG, "UserService bind iptal edildi: binder veya izin yok")
             evaluateShizukuState()
             return
         }
         if (service?.asBinder()?.pingBinder() == true) {
+            Log.d(TAG, "UserService zaten bağlı")
             _connectionState.value = ShizukuConnectionState.CONNECTED
             return
         }
@@ -297,20 +316,24 @@ object ShizukuController {
             .also { boundArgs = it }
 
         try {
+            Log.d(TAG, "Shizuku.bindUserService çağrılıyor")
             Shizuku.bindUserService(args, userServiceConnection)
             bindTimeoutJob?.cancel()
             bindTimeoutJob = scope.launch {
                 delay(BIND_TIMEOUT_MS)
                 if (_connectionState.value == ShizukuConnectionState.BINDING && service == null) {
+                    Log.d(TAG, "UserService bağlantı timeout: 5 saniye")
                     Log.e(TAG, "Timed out waiting for Shizuku UserService connection")
+                    unbindUserService()
                     _connectionState.value = ShizukuConnectionState.ERROR
                     _engineSnapshot.value = _engineSnapshot.value.copy(
-                        statusDetail = "Bağlantı Başarısız: Shizuku UserService 3 saniye içinde bağlanamadı."
+                        statusDetail = "Bağlantı Zaman Aşımı: Shizuku UserService 5 saniye içinde bağlanamadı"
                     )
                 }
                 bindTimeoutJob = null
             }
         } catch (t: Throwable) {
+            Log.e(TAG, "Shizuku.bindUserService başarısız", t)
             bindTimeoutJob?.cancel()
             bindTimeoutJob = null
             Log.e(TAG, "bindUserService error", t)
