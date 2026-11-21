@@ -435,7 +435,7 @@ class TouchMuxUserService() : ITouchMuxService.Stub() {
             currentMode.set(mode)
             statusDetail = "${backendLabel(mode)}: ${nativeGetTouchDeviceInfo()}"
         } else {
-            statusDetail = nativeGetLastError().ifBlank { "Native init failed ($rc)" }
+            statusDetail = nativeGetLastError().ifBlank { "Yerel motor başlatılamadı ($rc)" }
         }
         rc
     }
@@ -469,7 +469,7 @@ class TouchMuxUserService() : ITouchMuxService.Stub() {
         val rc = nativeInitAndGrab(displayWidth, displayHeight, rotation, safeTimeout, prefBackend)
         if (rc != 0) {
             currentMode.set(MODE_IDLE)
-            statusDetail = nativeGetLastError().ifBlank { "Native grab failed ($rc)" }
+            statusDetail = nativeGetLastError().ifBlank { "Yerel motor denetimi alınamadı ($rc)" }
             return@synchronized rc
         }
 
@@ -515,7 +515,7 @@ class TouchMuxUserService() : ITouchMuxService.Stub() {
             statusDetail = if (nativeDidRollback()) {
                 "Self-check expired and rolled back automatically."
             } else {
-                nativeGetLastError().ifBlank { "Native TouchMux not active." }
+                nativeGetLastError().ifBlank { "Yerel TouchMux etkin değil." }
             }
         }
         ok
@@ -851,7 +851,7 @@ class TouchMuxUserService() : ITouchMuxService.Stub() {
             statusDetail = if (ok) {
                 "Recording Touch..."
             } else {
-                nativeGetLastError().ifBlank { "Touch recording start failed." }
+                nativeGetLastError().ifBlank { "Dokunmatik kayıt başlatılamadı." }
             }
             ok
         } catch (t: Throwable) {
@@ -1691,11 +1691,11 @@ class TouchMuxUserService() : ITouchMuxService.Stub() {
             mode == MODE_NATIVE_UINPUT || mode == MODE_NATIVE_UHID || mode == MODE_HYBRID_EVDEV_INJECT
 
         fun backendLabel(mode: Int): String = when (mode) {
-            MODE_NATIVE_UINPUT -> "Tier 1 UInput 合流"
-            MODE_NATIVE_UHID -> "Tier 2 UHID Digitizer"
-            MODE_HYBRID_EVDEV_INJECT -> "Tier 3 Hybrid 零GC合流"
-            MODE_SHIZUKU_FALLBACK -> "Tier 4 Shizuku 降级注入"
-            else -> "空闲未激活"
+            MODE_NATIVE_UINPUT -> "Tier 1 UInput birleştirme"
+            MODE_NATIVE_UHID -> "Tier 2 UHID sayısallaştırıcı"
+            MODE_HYBRID_EVDEV_INJECT -> "Tier 3 Hybrid sıfır GC birleştirme"
+            MODE_SHIZUKU_FALLBACK -> "Tier 4 Shizuku yedek enjeksiyonu"
+            else -> "Boşta, etkin değil"
         }
     }
 }

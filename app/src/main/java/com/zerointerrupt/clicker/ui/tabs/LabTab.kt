@@ -80,7 +80,7 @@ fun LabTab(
             .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        PageTopHeader(title = "实验室")
+        PageTopHeader(title = "Laboratuvar")
 
         ExpressiveCard {
             Column(
@@ -88,22 +88,22 @@ fun LabTab(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "外观与控制",
+                    text = "Görünüm ve denetim",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "应用外观",
+                        text = "Uygulama görünümü",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                     ExpressiveConnectedGroup(
                         options = listOf(
-                            ExpressiveOption(ClickGlobalSettings.THEME_SYSTEM, "跟随系统"),
-                            ExpressiveOption(ClickGlobalSettings.THEME_DARK, "深色"),
-                            ExpressiveOption(ClickGlobalSettings.THEME_LIGHT, "浅色")
+                            ExpressiveOption(ClickGlobalSettings.THEME_SYSTEM, "Sistemi izle"),
+                            ExpressiveOption(ClickGlobalSettings.THEME_DARK, "Koyu"),
+                            ExpressiveOption(ClickGlobalSettings.THEME_LIGHT, "Açık")
                         ),
                         selectedValue = state.themeMode,
                         onSelect = callbacks.onThemeModeChange,
@@ -112,7 +112,7 @@ fun LabTab(
                 }
 
                 LabSwitchRow(
-                    title = "动态取色",
+                    title = "Dinamik renk çıkarımı",
                     checked = state.dynamicColor,
                     onCheckedChange = callbacks.onDynamicColorChange
                 )
@@ -121,27 +121,27 @@ fun LabTab(
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "桌面图标",
+                        text = "Uygulama simgesi",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                     ExpressiveConnectedGroup(
                         options = listOf(
-                            ExpressiveOption(ClickGlobalSettings.LAUNCHER_SYSTEM, "跟随系统"),
-                            ExpressiveOption(ClickGlobalSettings.LAUNCHER_DARK, "深色"),
-                            ExpressiveOption(ClickGlobalSettings.LAUNCHER_LIGHT, "浅色")
+                            ExpressiveOption(ClickGlobalSettings.LAUNCHER_SYSTEM, "Sistemi izle"),
+                            ExpressiveOption(ClickGlobalSettings.LAUNCHER_DARK, "Koyu"),
+                            ExpressiveOption(ClickGlobalSettings.LAUNCHER_LIGHT, "Açık")
                         ),
                         selectedValue = state.launcherIconMode,
                         onSelect = callbacks.onLauncherIconModeChange,
                         height = 42.dp
                     )
                     LabSwitchRow(
-                        title = "桌面图标动态取色",
+                        title = "Uygulama simgesinde dinamik renk çıkarımı",
                         checked = state.launcherDynamicIcon,
                         onCheckedChange = callbacks.onLauncherDynamicIconChange
                     )
                     Text(
-                        text = "向系统桌面提供 Monochrome 单色图层（需 Android 13+ 且桌面支持/开启主题图标配色）",
+                        text = "Sistem başlatıcısına Monochrome tek renk katmanı sunar (Android 13+ gerekir; başlatıcı tema simgesi renklerini desteklemeli/etkinleştirmiş olmalıdır)",
                         style = MaterialTheme.typography.bodySmall,
                         color = cs.onSurfaceVariant
                     )
@@ -150,7 +150,7 @@ fun LabTab(
                 HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.35f))
 
                 LabSwitchRow(
-                    title = "音量减键控制",
+                    title = "Ses kısma tuşu kontrolü",
                     checked = state.volumeKeyToggleEnabled,
                     onCheckedChange = callbacks.onVolumeKeyToggleChange
                 )
@@ -163,7 +163,7 @@ fun LabTab(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "状态栏磁贴",
+                        text = "Durum çubuğu kutucuğu",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier
@@ -181,7 +181,7 @@ fun LabTab(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(Modifier.width(6.dp))
-                        Text("添加", fontWeight = FontWeight.SemiBold)
+                        Text("Ekle", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -222,16 +222,16 @@ fun LabTab(
                     Column {
                         Text(
                             text = if (state.proModeEnabled) {
-                                "版本 v${state.appVersionName} · 专业模式"
+                                "Sürüm v${state.appVersionName} · Profesyonel mod"
                             } else {
-                                "版本 v${state.appVersionName}"
+                                "Sürüm v${state.appVersionName}"
                             },
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold
                         )
                         if (!state.proModeEnabled && versionTapCount in 1..6) {
                             Text(
-                                text = "还差 ${7 - versionTapCount} 次",
+                                text = "${7 - versionTapCount} kez kaldı",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = cs.primary
                             )
@@ -300,7 +300,7 @@ private fun ProHardwareConsoleCard(
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        text = "硬件监控",
+                        text = "Donanım izleme",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -311,7 +311,7 @@ private fun ProHardwareConsoleCard(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Refresh,
-                        contentDescription = "刷新硬件探测",
+                        contentDescription = "Donanım algılamasını yenile",
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -326,26 +326,26 @@ private fun ProHardwareConsoleCard(
                     modifier = Modifier.padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    DiagLine("Shizuku 状态", "${state.connectionState} · ${modeName(snap.engineMode)}")
+                    DiagLine("Shizuku durumu", "${state.connectionState} · ${modeName(snap.engineMode)}")
                     DiagLine("UID / PID", "${snap.uid} / ${snap.pid}")
-                    DiagLine("物理触控节点", snap.touchDeviceInfo.ifBlank { "未发现可读节点" })
-                    DiagLine("Abs 量程", snap.absRangeText.ifBlank { "未初始化" })
+                    DiagLine("Fiziksel dokunmatik düğümleri", snap.touchDeviceInfo.ifBlank { "Okunabilir düğüm bulunamadı" })
+                    DiagLine("Abs aralığı", snap.absRangeText.ifBlank { "Başlatılmadı" })
                     DiagLine(
                         "/dev/uinput",
-                        "${if (snap.uinputWritable) "RW 可用" else "受限"} (errno=${snap.uinputErrno})"
+                        "${if (snap.uinputWritable) "RW kullanılabilir" else "Kısıtlı"} (errno=${snap.uinputErrno})"
                     )
                     DiagLine(
                         "/dev/uhid",
-                        "${if (snap.uhidWritable) "RW 可用" else "受限"} (errno=${snap.uhidErrno})"
+                        "${if (snap.uhidWritable) "RW kullanılabilir" else "Kısıtlı"} (errno=${snap.uhidErrno})"
                     )
                     DiagLine(
                         "/dev/input/*",
-                        "${if (snap.touchDeviceReadable) "可读" else "不可读"} (errno=${snap.touchErrno})"
+                        "${if (snap.touchDeviceReadable) "Okunabilir" else "Okunamaz"} (errno=${snap.touchErrno})"
                     )
-                    DiagLine("引擎详情", snap.statusDetail)
+                    DiagLine("Motor ayrıntıları", snap.statusDetail)
                     if (snap.nativeProbeError.isNotBlank()) {
                         Text(
-                            text = "Native 错误: ${snap.nativeProbeError}",
+                            text = "Yerel motor hatası: ${snap.nativeProbeError}",
                             style = MaterialTheme.typography.labelSmall,
                             color = cs.error,
                             fontFamily = FontFamily.Monospace
@@ -367,7 +367,7 @@ private fun ProHardwareConsoleCard(
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                 ) {
-                    Text("强制清理孤儿进程", maxLines = 1, fontSize = 12.sp)
+                    Text("Yetim süreçleri zorla temizle", maxLines = 1, fontSize = 12.sp)
                 }
                 OutlinedButton(
                     onClick = {
@@ -379,23 +379,23 @@ private fun ProHardwareConsoleCard(
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                 ) {
-                    Text("释放独占", maxLines = 1, fontSize = 12.sp)
+                    Text("Tekel durumunu bırak", maxLines = 1, fontSize = 12.sp)
                 }
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "注入后端",
+                    text = "Enjeksiyon arka ucu",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold
                 )
                 ExpressiveConnectedGroup(
                     options = listOf(
-                        ExpressiveOption(ClickGlobalSettings.BACKEND_AUTO, "Auto"),
+                        ExpressiveOption(ClickGlobalSettings.BACKEND_AUTO, "Otomatik"),
                         ExpressiveOption(ClickGlobalSettings.BACKEND_UINPUT, "UInput"),
                         ExpressiveOption(ClickGlobalSettings.BACKEND_UHID, "UHID"),
-                        ExpressiveOption(ClickGlobalSettings.BACKEND_HYBRID, "Hybrid"),
-                        ExpressiveOption(ClickGlobalSettings.BACKEND_FALLBACK, "降级")
+                        ExpressiveOption(ClickGlobalSettings.BACKEND_HYBRID, "Hibrit"),
+                        ExpressiveOption(ClickGlobalSettings.BACKEND_FALLBACK, "Yedek")
                     ),
                     selectedValue = state.preferredBackend,
                     onSelect = callbacks.onPreferredBackendChange,
@@ -416,7 +416,7 @@ private fun ProRpcBridgeCard(
     callbacks: MainScreenCallbacks
 ) {
     val cs = MaterialTheme.colorScheme
-    val tokenDisplay = state.rpcToken.ifBlank { "<未生成>" }
+    val tokenDisplay = state.rpcToken.ifBlank { "<Oluşturulmadı>" }
 
     val adbCommand = remember(tokenDisplay) {
         "adb shell am broadcast -p com.zerointerrupt.clicker -a ${AutomationReceiver.ACTION_RPC} " +
@@ -425,7 +425,7 @@ private fun ProRpcBridgeCard(
 
     val pythonExample = remember(tokenDisplay) {
         """
-        # 1. 先执行: adb forward tcp:${LocalRpcServer.RPC_PORT} tcp:${LocalRpcServer.RPC_PORT}
+        # 1. Önce çalıştırın: adb forward tcp:${LocalRpcServer.RPC_PORT} tcp:${LocalRpcServer.RPC_PORT}
         import json, socket
 
         TOKEN = "$tokenDisplay"
@@ -456,7 +456,7 @@ private fun ProRpcBridgeCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "RPC 接口桥",
+                        text = "RPC arayüz köprüsü",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -464,7 +464,7 @@ private fun ProRpcBridgeCard(
                         text = if (state.rpcServerRunning) {
                             "127.0.0.1:${LocalRpcServer.RPC_PORT}"
                         } else {
-                            "未开启"
+                            "Etkin değil"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = if (state.rpcServerRunning) cs.primary else cs.onSurfaceVariant
@@ -486,7 +486,7 @@ private fun ProRpcBridgeCard(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "Access Token",
+                        text = "Erişim Tokenı",
                         style = MaterialTheme.typography.labelSmall,
                         color = cs.onSurfaceVariant
                     )
@@ -498,7 +498,7 @@ private fun ProRpcBridgeCard(
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilledTonalButton(
-                            onClick = { callbacks.onCopyText("Access Token", tokenDisplay) },
+                            onClick = { callbacks.onCopyText("Erişim Tokenı", tokenDisplay) },
                             enabled = state.rpcToken.isNotBlank(),
                             shape = CircleShape,
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
@@ -509,14 +509,14 @@ private fun ProRpcBridgeCard(
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(Modifier.width(4.dp))
-                            Text("复制 Token", fontSize = 12.sp)
+                            Text("Token'ı kopyala", fontSize = 12.sp)
                         }
                         OutlinedButton(
                             onClick = callbacks.onResetRpcToken,
                             shape = CircleShape,
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Text("重置 Token", fontSize = 12.sp)
+                            Text("Token'ı sıfırla", fontSize = 12.sp)
                         }
                     }
                 }
@@ -524,7 +524,7 @@ private fun ProRpcBridgeCard(
 
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    text = "接口 A · ADB Broadcast (START/STOP/SWITCH_PRESET/TAP/SWIPE)",
+                    text = "Arayüz A · ADB Broadcast (START/STOP/SWITCH_PRESET/TAP/SWIPE)",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -542,7 +542,7 @@ private fun ProRpcBridgeCard(
                     )
                 }
                 OutlinedButton(
-                    onClick = { callbacks.onCopyText("ADB 广播命令", adbCommand) },
+                    onClick = { callbacks.onCopyText("ADB yayın komutları", adbCommand) },
                     shape = CircleShape,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -552,23 +552,23 @@ private fun ProRpcBridgeCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text("复制 ADB 广播调试命令")
+                    Text("ADB yayın hata ayıklama komutunu kopyala")
                 }
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    text = "接口 B · 127.0.0.1:${LocalRpcServer.RPC_PORT} 按行 JSON-RPC",
+                    text = "Arayüz B · 127.0.0.1:${LocalRpcServer.RPC_PORT} satır satır JSON-RPC",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "协议指令: ping / status / tap / swipe / hold_down / hold_up / start / stop / switch_preset",
+                    text = "Protokol komutları: ping / status / tap / swipe / hold_down / hold_up / start / stop / switch_preset",
                     style = MaterialTheme.typography.bodySmall,
                     color = cs.onSurfaceVariant
                 )
                 FilledTonalButton(
-                    onClick = { callbacks.onCopyText("Python RPC 示例", pythonExample) },
+                    onClick = { callbacks.onCopyText("Python RPC örneği", pythonExample) },
                     shape = CircleShape,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -578,7 +578,7 @@ private fun ProRpcBridgeCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text("一键复制 Python 调用示例")
+                    Text("Python çağrı örneğini tek dokunuşla kopyala")
                 }
             }
         }
@@ -635,7 +635,7 @@ private fun LabSwitchRow(
 private fun modeName(mode: Int): String = when (mode) {
     TouchMuxUserService.MODE_NATIVE_UINPUT -> "Tier1 UInput"
     TouchMuxUserService.MODE_NATIVE_UHID -> "Tier2 UHID"
-    TouchMuxUserService.MODE_HYBRID_EVDEV_INJECT -> "Tier3 Hybrid"
-    TouchMuxUserService.MODE_SHIZUKU_FALLBACK -> "Tier4 Fallback"
-    else -> "Idle"
+    TouchMuxUserService.MODE_HYBRID_EVDEV_INJECT -> "Tier 3 Hibrit"
+    TouchMuxUserService.MODE_SHIZUKU_FALLBACK -> "Tier 4 Geri dönüş"
+    else -> "Boşta"
 }

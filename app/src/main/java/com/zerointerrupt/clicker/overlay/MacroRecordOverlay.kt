@@ -193,7 +193,7 @@ class MacroRecordOverlay(
             Stage.READY -> {
                 if (!ShizukuController.isServiceConnected()) {
                     ShizukuController.evaluateShizukuState()
-                    Toast.makeText(context, "请先在主界面授权并连接 Shizuku 服务", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Önce ana ekrandan Shizuku hizmetine izin verip bağlanın", Toast.LENGTH_SHORT).show()
                     return
                 }
                 val b = currentExcludeBounds()
@@ -204,7 +204,7 @@ class MacroRecordOverlay(
                         if (!ok) {
                             Toast.makeText(
                                 context,
-                                "无法打开物理触屏节点进行录制，请在实验室刷新硬件状态",
+                                "Kayıt için fiziksel dokunmatik ekran düğümü açılamadı. Lütfen laboratuvarda donanım durumunu yenileyin",
                                 Toast.LENGTH_LONG
                             ).show()
                         } else {
@@ -241,7 +241,7 @@ class MacroRecordOverlay(
                             lastStrokes = 0
                             lastFingers = 0
                             barView?.renderState(stage, 0L, 0, 0)
-                            Toast.makeText(context, "未识别到有效的触控轨迹，请重新录制", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Geçerli dokunma hareketi algılanmadı. Lütfen yeniden kaydedin", Toast.LENGTH_SHORT).show()
                         } else {
                             activePlan = compiled
                             stage = Stage.PREVIEW
@@ -302,7 +302,7 @@ class MacroRecordOverlay(
                 removePreview()
                 Toast.makeText(
                     context,
-                    "已保存「${savedMain.name}」并设为当前方案",
+                    "「${savedMain.name}」 kaydedildi ve geçerli plan olarak ayarlandı",
                     Toast.LENGTH_SHORT
                 ).show()
                 onFinished(finalPlan.copy(mainPreset = savedMain), openPresets)
@@ -469,25 +469,25 @@ private class RecordControlBarView(
         when (stage) {
             MacroRecordOverlay.Stage.READY -> {
                 dotColor = colors.primary
-                titleView.text = "连招录制就绪"
-                subtitleView.text = "拖移到角落后点「就绪」"
+                titleView.text = "Hareket kaydı hazır"
+                subtitleView.text = "Bir köşeye sürükleyip「Hazır」a dokunun"
                 primaryBtn.visibility = View.VISIBLE
-                primaryBtn.text = "就绪"
+                primaryBtn.text = "Hazır"
                 stylePrimaryPill(colors.primary, colors.onPrimary)
             }
             MacroRecordOverlay.Stage.ARMED -> {
                 dotColor = Color.parseColor("#F59E0B")
-                titleView.text = "等待首次触屏…"
-                subtitleView.text = "点击目标应用任意操作即开始"
+                titleView.text = "İlk dokunma bekleniyor…"
+                subtitleView.text = "Başlamak için hedef uygulamada herhangi bir işlem yapın"
                 primaryBtn.visibility = View.GONE
             }
             MacroRecordOverlay.Stage.RECORDING -> {
                 dotColor = colors.error
                 val secStr = String.format(Locale.US, "%.1fs", elapsedMs / 1000.0)
-                titleView.text = "录制中 $secStr"
-                subtitleView.text = if (fingers > 0) "已采 $strokes 笔 · 当前 $fingers 指按下" else "已采 $strokes 笔触控"
+                titleView.text = "Kayıt sürüyor $secStr"
+                subtitleView.text = if (fingers > 0) "$strokes hareket kaydedildi · Şu anda $fingers parmak basılı" else "$strokes dokunma kaydedildi"
                 primaryBtn.visibility = View.VISIBLE
-                primaryBtn.text = "结束"
+                primaryBtn.text = "Bitir"
                 stylePrimaryPill(colors.error, Color.WHITE)
             }
             else -> dotColor = colors.primary
@@ -617,7 +617,7 @@ private class RecordPreviewOverlayView(
             gravity = Gravity.CENTER_VERTICAL
         }
         val titleTv = TextView(context).apply {
-            text = "连招录制完成"
+            text = "Hareket kaydı tamamlandı"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(themeColors.onSurface)
@@ -650,8 +650,8 @@ private class RecordPreviewOverlayView(
         // Summary line
         val durStr = formatDurationShort(plan.totalDurationMs)
         val subCount = plan.subPresets.size
-        val summaryParts = mutableListOf("耗时 $durStr", "${plan.rawStrokeCount} 笔原操作", "共 ${plan.mainPreset.targets.size} 步")
-        if (subCount > 0) summaryParts += "生成 $subCount 个并发子方案"
+        val summaryParts = mutableListOf("Süre $durStr", "${plan.rawStrokeCount} özgün işlem", "Toplam ${plan.mainPreset.targets.size} adım")
+        if (subCount > 0) summaryParts += "$subCount paralel alt plan oluştur"
         val summaryTv = TextView(context).apply {
             text = summaryParts.joinToString(" · ")
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
@@ -662,7 +662,7 @@ private class RecordPreviewOverlayView(
 
         if (plan.mergedContinuousHolds > 0) {
             val mergeTv = TextView(context).apply {
-                text = "✓ 已自动合并 ${plan.mergedContinuousHolds} 处跨阶段持续按住不断触"
+                text = "✓ Aşamalar arasında basılı tutulmaya devam eden ${plan.mergedContinuousHolds} dokunuş otomatik olarak birleştirildi"
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
                 typeface = Typeface.DEFAULT_BOLD
                 setTextColor(themeColors.activeRunningGreen)
@@ -674,7 +674,7 @@ private class RecordPreviewOverlayView(
         // Scheme name EditText + child scheme hint
         val nameInput = EditText(themeColors.themedContext).apply {
             setText(plan.mainPreset.name)
-            hint = "输入主方案名称"
+            hint = "Ana planın adını girin"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             setTextColor(themeColors.onSurface)
             setHintTextColor(themeColors.onSurfaceVariant)
@@ -708,11 +708,11 @@ private class RecordPreviewOverlayView(
                 val children = if (subCount <= 3) {
                     (1..subCount).joinToString("、") { "$clean.$it" }
                 } else {
-                    "$clean.1 ~ $clean.$subCount（共 $subCount 个）"
+                    "$clean.1 ~ $clean.$subCount (toplam $subCount adet)"
                 }
-                "将保存：主方案「$clean」（顺序连招）+ 子方案「$children」（并发·默认冻结）"
+                "Kaydedilecek: ana plan「$clean」(sıralı kombinasyon) + alt planlar「$children」(paralel · varsayılan olarak dondurulmuş)"
             } else {
-                "将保存：主方案「$clean」（顺序连招）"
+                "Kaydedilecek: ana plan「$clean」(sıralı kombinasyon)"
             }
         }
         refreshHint(plan.mainPreset.name)
@@ -732,7 +732,7 @@ private class RecordPreviewOverlayView(
             setPadding(0, 0, 0, (8f * d).roundToInt())
         }
         val loopLabel = TextView(context).apply {
-            text = "执行遍数"
+            text = "Çalıştırma sayısı"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             setTextColor(themeColors.onSurfaceVariant)
             layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
@@ -751,7 +751,7 @@ private class RecordPreviewOverlayView(
                 }
             )
         }
-        listOf(0 to "无限循环", 1 to "执行 1 遍").forEach { (cnt, label) ->
+        listOf(0 to "Sonsuz döngü", 1 to "1 kez çalıştır").forEach { (cnt, label) ->
             val chip = TextView(context).apply {
                 text = label
                 gravity = Gravity.CENTER
@@ -809,29 +809,29 @@ private class RecordPreviewOverlayView(
             val title = when (step.actionType) {
                 ActionType.SUB_PRESET -> {
                     val sub = plan.subPresets.firstOrNull { it.id == step.refPresetId }
-                    "#${step.index} 并发子方案: ${sub?.name ?: "并发段"} (${sub?.targets?.size ?: 0} 触点)"
+                    "#${step.index} paralel alt plan: ${sub?.name ?: "Paralel bölüm"} (${sub?.targets?.size ?: 0} dokunma noktası)"
                 }
                 ActionType.SWIPE ->
-                    "#${step.index} 滑动 (${step.x.roundToInt()},${step.y.roundToInt()} → ${step.endX.roundToInt()},${step.endY.roundToInt()})"
+                    "#${step.index} Kaydırma (${step.x.roundToInt()},${step.y.roundToInt()} → ${step.endX.roundToInt()},${step.endY.roundToInt()})"
                 else -> {
-                    val clickTag = if (step.pressDurationMs <= 120L && step.repeatCount > 1) "连点(长按实现)" else "长按"
+                    val clickTag = if (step.pressDurationMs <= 120L && step.repeatCount > 1) "Ardışık dokunuş (basılı tutma ile)" else "Uzun basma"
                     "#${step.index} $clickTag (${step.x.roundToInt()},${step.y.roundToInt()})"
                 }
             }
             val detail = when (step.actionType) {
                 ActionType.SUB_PRESET -> {
-                    val gapStr = if (step.intervalMs <= 0L) "0ms无缝" else "停顿 ${step.intervalMs}ms"
-                    val mergeStr = if (step.id in seamlessIds) " · 不断触衔接" else ""
-                    "持续 ${formatDurationShort(step.subDurationMs)} · $gapStr$mergeStr"
+                    val gapStr = if (step.intervalMs <= 0L) "0 ms kesintisiz" else "${step.intervalMs} ms bekle"
+                    val mergeStr = if (step.id in seamlessIds) " · Dokunuş kesintisiz sürer" else ""
+                    "${formatDurationShort(step.subDurationMs)} sürer · $gapStr$mergeStr"
                 }
                 ActionType.SWIPE -> {
-                    val gapStr = if (step.intervalMs <= 0L) "0ms" else "停顿 ${step.intervalMs}ms"
-                    "滑动 ${step.swipeDurationMs}ms · $gapStr"
+                    val gapStr = if (step.intervalMs <= 0L) "0ms" else "${step.intervalMs} ms bekle"
+                    "${step.swipeDurationMs} ms kaydırma · $gapStr"
                 }
                 else -> {
-                    val gapStr = if (step.intervalMs <= 0L) "0ms无缝" else "停顿 ${step.intervalMs}ms"
-                    val mergeStr = if (step.id in seamlessIds) " · 不断触衔接" else ""
-                    "按住 ${step.pressDurationMs}ms · $gapStr · ${step.repeatCount}次$mergeStr"
+                    val gapStr = if (step.intervalMs <= 0L) "0 ms kesintisiz" else "${step.intervalMs} ms bekle"
+                    val mergeStr = if (step.id in seamlessIds) " · Dokunuş kesintisiz sürer" else ""
+                    "${step.pressDurationMs} ms basılı tut · $gapStr · ${step.repeatCount} kez$mergeStr"
                 }
             }
 
@@ -859,7 +859,7 @@ private class RecordPreviewOverlayView(
         if (totalSteps > maxPreviewSteps) {
             stepsList.addView(
                 TextView(context).apply {
-                    text = "… 其余 ${totalSteps - maxPreviewSteps} 步已折叠预览，保存后将完整保留全部 $totalSteps 步"
+                    text = "… Kalan ${totalSteps - maxPreviewSteps} adım önizlemede daraltıldı; kaydedildiğinde $totalSteps adımın tamamı korunacak"
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
                     setTextColor(themeColors.onSurfaceVariant)
                     gravity = Gravity.CENTER
@@ -913,13 +913,13 @@ private class RecordPreviewOverlayView(
         }
 
         btnRow.addView(
-            makeActionBtn("重录", themeColors.secondaryContainer, themeColors.onSecondaryContainer, onRetake),
+            makeActionBtn("Yeniden kaydet", themeColors.secondaryContainer, themeColors.onSecondaryContainer, onRetake),
             LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
                 marginEnd = (6f * d).roundToInt()
             }
         )
         btnRow.addView(
-            makeActionBtn("进方案页", themeColors.primaryContainer, themeColors.onPrimaryContainer) {
+            makeActionBtn("Plan sayfasına git", themeColors.primaryContainer, themeColors.onPrimaryContainer) {
                 onSave(nameInput.text.toString(), selectedLoopCount, true)
             },
             LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
@@ -927,7 +927,7 @@ private class RecordPreviewOverlayView(
             }
         )
         btnRow.addView(
-            makeActionBtn("保存并使用", themeColors.primary, themeColors.onPrimary) {
+            makeActionBtn("Kaydet ve kullan", themeColors.primary, themeColors.onPrimary) {
                 onSave(nameInput.text.toString(), selectedLoopCount, false)
             }
         )
@@ -937,7 +937,7 @@ private class RecordPreviewOverlayView(
     private fun formatDurationShort(ms: Long): String {
         return if (ms >= 1000L) {
             val sec = ms / 1000.0
-            if (ms % 1000L == 0L) "${ms / 1000L}秒" else String.format(Locale.US, "%.2f秒", sec)
+            if (ms % 1000L == 0L) "${ms / 1000L} saniye" else String.format(Locale.US, "%.2f saniye", sec)
         } else {
             "${ms}ms"
         }

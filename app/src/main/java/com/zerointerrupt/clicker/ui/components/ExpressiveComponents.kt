@@ -518,7 +518,7 @@ fun PageTopHeader(
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Rounded.MoreVert,
-                                contentDescription = "更多",
+                                contentDescription = "Daha fazla",
                                 tint = cs.onSurfaceVariant
                             )
                             if (showMenuAlertDot) {

@@ -165,7 +165,7 @@ class AnchorPointView(
             textPaint.alpha = (255 * alphaScale).roundToInt()
             val fm = textPaint.fontMetrics
             val ty = cy - (fm.ascent + fm.descent) * 0.5f
-            canvas.drawText("终", cx, ty, textPaint)
+            canvas.drawText("Bitir", cx, ty, textPaint)
             return
         }
 
@@ -211,7 +211,7 @@ class AnchorPointView(
         canvas.drawText(indexNumber.toString(), cx, textY, textPaint)
 
         if (actionType != ActionType.TAP && !locked) {
-            val tag = if (actionType == ActionType.SWIPE) "滑" else "按"
+            val tag = if (actionType == ActionType.SWIPE) "Kaydır" else "Bas"
             val bx = cx + radius * 0.68f
             val by = cy + radius * 0.68f
             badgeBgPaint.color = accentColor

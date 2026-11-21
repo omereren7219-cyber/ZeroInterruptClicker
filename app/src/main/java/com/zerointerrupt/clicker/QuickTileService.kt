@@ -75,9 +75,9 @@ class QuickTileService : TileService() {
         tile.state = if (visible) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = when {
-                running && visible -> "连点运行中"
-                visible -> "悬浮窗已开启"
-                else -> "点击开启"
+                running && visible -> "Otomatik dokunma çalışıyor"
+                visible -> "Yüzen pencere etkin"
+                else -> "Etkinleştir"
             }
         }
         tile.updateTile()

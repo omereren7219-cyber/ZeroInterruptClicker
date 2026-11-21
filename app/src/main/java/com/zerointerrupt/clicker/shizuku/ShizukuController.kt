@@ -53,7 +53,7 @@ data class EngineSnapshot(
     val fallbackReady: Boolean = false,
     val touchDeviceInfo: String = "",
     val absRangeText: String = "",
-    val statusDetail: String = "未连接 Shizuku 服务",
+    val statusDetail: String = "Shizuku hizmetine bağlı değil",
     val uid: Int = -1,
     val pid: Int = -1,
     val nativeProbeError: String = ""
@@ -133,7 +133,7 @@ object ShizukuController {
         _connectionState.value = ShizukuConnectionState.SHIZUKU_NOT_RUNNING
         _engineSnapshot.value = _engineSnapshot.value.copy(
             engineMode = TouchMuxUserService.MODE_IDLE,
-            statusDetail = "Shizuku 服务已断开，等待重新连接"
+            statusDetail = "Shizuku hizmeti bağlantısı kesildi, yeniden bağlanması bekleniyor"
         )
     }
 
@@ -144,7 +144,7 @@ object ShizukuController {
             } else {
                 _connectionState.value = ShizukuConnectionState.NO_PERMISSION
                 _engineSnapshot.value = _engineSnapshot.value.copy(
-                    statusDetail = "用户拒绝了 Shizuku 授权"
+                    statusDetail = "Kullanıcı Shizuku iznini reddetti"
                 )
             }
         }
@@ -155,7 +155,7 @@ object ShizukuController {
             if (binder == null || !binder.pingBinder()) {
                 _connectionState.value = ShizukuConnectionState.ERROR
                 _engineSnapshot.value = _engineSnapshot.value.copy(
-                    statusDetail = "UserService Binder 无效"
+                    statusDetail = "UserService Binder geçersiz"
                 )
                 return
             }
@@ -222,12 +222,12 @@ object ShizukuController {
             service = null
             _slotStates.value = List(16) { 0 }
             _connectionState.value = ShizukuConnectionState.SHIZUKU_NOT_RUNNING
-            _engineSnapshot.value = EngineSnapshot(statusDetail = "请先启动 Shizuku 服务")
+            _engineSnapshot.value = EngineSnapshot(statusDetail = "Önce Shizuku hizmetini başlatın")
             return
         }
         if (!hasPermission()) {
             _connectionState.value = ShizukuConnectionState.NO_PERMISSION
-            _engineSnapshot.value = EngineSnapshot(statusDetail = "Shizuku 已运行，等待授权")
+            _engineSnapshot.value = EngineSnapshot(statusDetail = "Shizuku çalışıyor, izin bekleniyor")
             return
         }
         if (service?.asBinder()?.pingBinder() == true) {
@@ -262,7 +262,7 @@ object ShizukuController {
         } catch (t: Throwable) {
             _connectionState.value = ShizukuConnectionState.ERROR
             _engineSnapshot.value = _engineSnapshot.value.copy(
-                statusDetail = "请求 Shizuku 权限失败: ${t.message}"
+                statusDetail = "Shizuku izni isteği başarısız: ${t.message}"
             )
         }
     }
@@ -293,7 +293,7 @@ object ShizukuController {
             Log.e(TAG, "bindUserService error", t)
             _connectionState.value = ShizukuConnectionState.ERROR
             _engineSnapshot.value = _engineSnapshot.value.copy(
-                statusDetail = "绑定 UserService 失败: ${t.message}"
+                statusDetail = "UserService bağlanamadı: ${t.message}"
             )
         }
     }
@@ -307,7 +307,7 @@ object ShizukuController {
                 val obj = JSONObject(jsonStr)
                 val touchPath = obj.optString("touchDevicePath", "")
                 val touchName = obj.optString("touchDeviceName", "")
-                val touchInfo = if (touchPath.isNotEmpty()) "$touchPath ($touchName)" else "未检测到可读触控节点"
+                val touchInfo = if (touchPath.isNotEmpty()) "$touchPath ($touchName)" else "Okunabilir dokunmatik giriş düğümü algılanmadı"
                 val detail = obj.optString("statusDetail", "Ready")
                 val uinputOk = obj.optBoolean("uinputWritable", false)
                 val uinputErr = obj.optInt("uinputErrno", -1)

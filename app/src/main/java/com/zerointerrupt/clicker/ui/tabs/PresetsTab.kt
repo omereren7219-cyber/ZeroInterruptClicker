@@ -164,12 +164,12 @@ fun PresetsTab(
     val frozenCount = remember(state.presets) { state.presets.count { it.isFrozen } }
     val menuActions = listOf(
         OverflowMenuAction(
-            label = "批量导出 JSON",
+            label = "JSON'u toplu dışa aktar",
             enabled = state.presets.isNotEmpty(),
             onClick = callbacks.onExportAllPresetsJson
         ),
         OverflowMenuAction(
-            label = "批量导入 JSON",
+            label = "JSON'u toplu içe aktar",
             onClick = {
                 val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                 val clip = cm?.primaryClip?.getItemAt(0)?.text?.toString().orEmpty()
@@ -178,19 +178,19 @@ fun PresetsTab(
             }
         ),
         OverflowMenuAction(
-            label = "冻结 / 解冻方案",
-            badge = if (frozenCount > 0) "${frozenCount}已冻" else null,
+            label = "Planları dondur / çöz",
+            badge = if (frozenCount > 0) "${frozenCount} donduruldu" else null,
             enabled = state.presets.isNotEmpty(),
             onClick = { showTreeFreezeDialog = true }
         ),
         OverflowMenuAction(
-            label = "批量删除方案",
+            label = "Planları toplu sil",
             enabled = treeNodes.size > 1,
             isDestructive = true,
             onClick = { showBatchDeleteDialog = true }
         ),
         OverflowMenuAction(
-            label = "批量添加空方案",
+            label = "Boş planları toplu ekle",
             onClick = { showBatchCreateDialog = true }
         )
     )
@@ -203,7 +203,7 @@ fun PresetsTab(
         ) {
             item {
                 PageTopHeader(
-                    title = "方案",
+                    title = "Profil",
                     menuActions = menuActions,
                     modifier = Modifier.padding(horizontal = 20.dp)
                 )
@@ -253,12 +253,12 @@ fun PresetsTab(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = "当前方案均已冻结",
+                                text = "Mevcut planların tümü donduruldu",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "已冻结的方案不在主方案页展示；请点击右上角 ⋮ 菜单中的「冻结 / 解冻方案」解冻，或点击右下角新建方案。",
+                                text = "Dondurulan planlar ana plan sayfasında gösterilmez; çözmek için sağ üst köşedeki ⋮ menüsünden «Planları dondur / çöz» seçeneğine dokunun veya sağ alttan yeni plan oluşturun.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = cs.onSurfaceVariant
                             )
@@ -291,12 +291,12 @@ fun PresetsTab(
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     val detailModeLabel = if (activePreset.executionMode == ExecutionMode.SEQUENTIAL) {
-                                        "顺序"
+                                        "Sıra"
                                     } else {
-                                        "并发"
+                                        "Eşzamanlı"
                                     }
                                     Text(
-                                        text = "${activePreset.targets.size} 步骤 · $detailModeLabel",
+                                        text = "${activePreset.targets.size} adım · $detailModeLabel",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = cs.onSurfaceVariant
                                     )
@@ -308,7 +308,7 @@ fun PresetsTab(
                                 ) {
                                     Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(4.dp))
-                                    Text("添加", fontWeight = FontWeight.SemiBold)
+                                    Text("Ekle", fontWeight = FontWeight.SemiBold)
                                 }
                             }
 
@@ -316,12 +316,12 @@ fun PresetsTab(
                                 options = listOf(
                                     ExpressiveOption(
                                         ExecutionMode.CONCURRENT,
-                                        "并发",
+                                        "Eşzamanlı",
                                         R.drawable.ic_touch_app
                                     ),
                                     ExpressiveOption(
                                         ExecutionMode.SEQUENTIAL,
-                                        "顺序",
+                                        "Sıra",
                                         R.drawable.ic_swipe
                                     )
                                 ),
@@ -338,15 +338,15 @@ fun PresetsTab(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = "整套执行遍数",
+                                            text = "Tüm planın çalıştırılma sayısı",
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         Text(
                                             text = if (activePreset.presetLoopCount <= 0) {
-                                                "无限循环"
+                                                "Sonsuz döngü"
                                             } else {
-                                                "跑完 ${activePreset.presetLoopCount} 遍自动停止"
+                                                "${activePreset.presetLoopCount} tur tamamlanınca otomatik durdur"
                                             },
                                             style = MaterialTheme.typography.labelSmall,
                                             color = cs.primary,
@@ -357,7 +357,7 @@ fun PresetsTab(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
-                                        listOf(0 to "无限", 1 to "1遍", 3 to "3遍", 5 to "5遍").forEach { (cnt, tag) ->
+                                        listOf(0 to "Sınırsız", 1 to "1 kez", 3 to "3 kez", 5 to "5 kez").forEach { (cnt, tag) ->
                                             FilterChip(
                                                 selected = activePreset.presetLoopCount == cnt,
                                                 onClick = { callbacks.onSetPresetLoopCount(activePreset.id, cnt) },
@@ -370,7 +370,7 @@ fun PresetsTab(
                                             onClick = { showLoopCountDialog = true },
                                             label = {
                                                 Text(
-                                                    text = if (isCustomLoop) "${activePreset.presetLoopCount}遍" else "自定义",
+                                                    text = if (isCustomLoop) "${activePreset.presetLoopCount} kez" else "Özel",
                                                     maxLines = 1
                                                 )
                                             }
@@ -386,7 +386,7 @@ fun PresetsTab(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
-                                        text = "暂无步骤，点击右上角「+ 添加」配置手势或子方案",
+                                        text = "Henüz adım yok. Hareket veya alt planı yapılandırmak için sağ üstteki「+ Ekle」öğesine dokunun",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = cs.onSurfaceVariant,
                                         modifier = Modifier.padding(16.dp)
@@ -468,9 +468,9 @@ fun PresetsTab(
 
     if (showCreateDialog) {
         PresetNameDialog(
-            title = "手动新建方案",
-            initialName = "方案 ${ClickConfigStore.nextMainPresetNumber(state.presets)}",
-            confirmLabel = "创建",
+            title = "Elle yeni plan oluştur",
+            initialName = "Plan ${ClickConfigStore.nextMainPresetNumber(state.presets)}",
+            confirmLabel = "Oluştur",
             showCopySwitch = true,
             onDismiss = { showCreateDialog = false },
             onConfirm = { name, copyCurrent ->
@@ -487,18 +487,18 @@ fun PresetsTab(
         val parsedLoop = loopText.toIntOrNull()?.coerceIn(0, ClickTarget.MAX_REPEAT_COUNT)
         AlertDialog(
             onDismissRequest = { showLoopCountDialog = false },
-            title = { Text("设置整套执行遍数", fontWeight = FontWeight.SemiBold) },
+            title = { Text("Tüm planın çalıştırılma sayısını ayarla", fontWeight = FontWeight.SemiBold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "0 表示无限循环；>= 1 表示顺序跑完指定遍数后自动停止并释放触发状态。",
+                        text = "0 sonsuz döngü demektir; >= 1 belirtilen sayıda sırayla çalıştırdıktan sonra otomatik olarak durur ve tetikleme durumunu sıfırlar.",
                         style = MaterialTheme.typography.bodySmall,
                         color = cs.onSurfaceVariant
                     )
                     OutlinedTextField(
                         value = loopText,
                         onValueChange = { raw -> loopText = raw.filter(Char::isDigit).take(4) },
-                        label = { Text("执行遍数 (0=无限, 1~9999)") },
+                        label = { Text("Çalıştırma sayısı (0=sonsuz, 1~9999)") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth()
@@ -512,10 +512,10 @@ fun PresetsTab(
                         callbacks.onSetPresetLoopCount(displayedPreset.id, parsedLoop ?: 0)
                         showLoopCountDialog = false
                     }
-                ) { Text("确定") }
+                ) { Text("Onayla") }
             },
             dismissButton = {
-                TextButton(onClick = { showLoopCountDialog = false }) { Text("取消") }
+                TextButton(onClick = { showLoopCountDialog = false }) { Text("İptal") }
             }
         )
     }
@@ -533,9 +533,9 @@ fun PresetsTab(
 
     renameTargetPreset?.let { preset ->
         PresetNameDialog(
-            title = "重命名方案",
+            title = "Planı yeniden adlandır",
             initialName = preset.name,
-            confirmLabel = "保存",
+            confirmLabel = "Kaydet",
             showCopySwitch = false,
             onDismiss = { renameTargetPreset = null },
             onConfirm = { newName, _ ->
@@ -548,9 +548,9 @@ fun PresetsTab(
     if (showBatchImportDialog) {
         ImportJsonDialog(
             initialText = batchImportInitialText,
-            title = "批量导入 JSON",
-            hintText = "粘贴导出的多方案 JSON 包或单方案 JSON 文本：",
-            confirmLabel = "批量导入",
+            title = "JSON'u toplu içe aktar",
+            hintText = "Dışa aktarılan çoklu plan JSON paketi veya tek plan JSON metnini yapıştırın:",
+            confirmLabel = "Toplu içe aktar",
             onDismiss = { showBatchImportDialog = false },
             onImport = { json ->
                 callbacks.onBatchImportPresetsJson(json)
@@ -714,7 +714,7 @@ private fun CarouselItemScope.PresetCarouselCard(
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Rounded.Check,
-                            contentDescription = "使用中",
+                            contentDescription = "Kullanımda",
                             modifier = Modifier.size(17.dp)
                         )
                     }
@@ -736,7 +736,7 @@ private fun CarouselItemScope.PresetCarouselCard(
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Rounded.MoreVert,
-                            contentDescription = "方案操作",
+                            contentDescription = "Plan işlemleri",
                             modifier = Modifier.size(17.dp)
                         )
                     }
@@ -746,14 +746,14 @@ private fun CarouselItemScope.PresetCarouselCard(
                     onDismissRequest = { cardMenuExpanded = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("重命名") },
+                        text = { Text("Yeniden adlandır") },
                         onClick = {
                             cardMenuExpanded = false
                             onRename()
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("导出为 JSON") },
+                        text = { Text("JSON olarak dışa aktar") },
                         onClick = {
                             cardMenuExpanded = false
                             onExportJson()
@@ -761,7 +761,7 @@ private fun CarouselItemScope.PresetCarouselCard(
                     )
                     if (canDelete) {
                         DropdownMenuItem(
-                            text = { Text("删除方案", color = cs.error) },
+                            text = { Text("Planı sil", color = cs.error) },
                             onClick = {
                                 cardMenuExpanded = false
                                 onDelete()
@@ -886,14 +886,14 @@ private fun TargetRowCard(
                     }
                     Text(
                         text = when (target.actionType) {
-                            ActionType.SWIPE -> "滑动 (${target.x.roundToInt()},${target.y.roundToInt()})→(${target.endX.roundToInt()},${target.endY.roundToInt()})"
+                            ActionType.SWIPE -> "Kaydır (${target.x.roundToInt()},${target.y.roundToInt()})→(${target.endX.roundToInt()},${target.endY.roundToInt()})"
                             ActionType.HOLD -> if (!isConcurrent && target.pressDurationMs <= 120L && target.repeatCount >= 1) {
-                                "按住点击 (${target.x.roundToInt()},${target.y.roundToInt()})"
+                                "Basılı tutarak tıkla (${target.x.roundToInt()},${target.y.roundToInt()})"
                             } else {
-                                "长按 (${target.x.roundToInt()},${target.y.roundToInt()})"
+                                "Uzun bas (${target.x.roundToInt()},${target.y.roundToInt()})"
                             }
-                            ActionType.SUB_PRESET -> "并发方案: ${refPreset?.name ?: "未找到方案"}"
-                            ActionType.TAP -> "连点 (${target.x.roundToInt()},${target.y.roundToInt()})"
+                            ActionType.SUB_PRESET -> "Eşzamanlı plan: ${refPreset?.name ?: "Plan bulunamadı"}"
+                            ActionType.TAP -> "Tekrarlı tıkla (${target.x.roundToInt()},${target.y.roundToInt()})"
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
@@ -901,23 +901,23 @@ private fun TargetRowCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                val repeatTag = if (target.repeatCount <= 0) "无限" else "${target.repeatCount}次"
-                val gapLabel = if (target.intervalMs <= 0L) "无缝(0ms)" else "停顿 ${target.intervalMs}ms"
+                val repeatTag = if (target.repeatCount <= 0) "Sınırsız" else "${target.repeatCount} kez"
+                val gapLabel = if (target.intervalMs <= 0L) "Kesintisiz (0 ms)" else "Bekleme ${target.intervalMs}ms"
                 val detail = when (target.actionType) {
                     ActionType.SUB_PRESET -> when {
-                        isConcurrent -> "仅在顺序模式中生效"
-                        refPreset == null -> "引用的方案已不存在"
-                        refPreset.executionMode != ExecutionMode.CONCURRENT -> "引用方案当前非并发模式"
-                        target.repeatCount <= 0 -> "${refPreset.targets.count { it.enabled }} 节点 · 无限并发"
-                        else -> "持续 ${formatMsShort(target.subDurationMs)} · $gapLabel · $repeatTag"
+                        isConcurrent -> "Yalnızca sıralı modda geçerlidir"
+                        refPreset == null -> "Başvurulan plan artık mevcut değil"
+                        refPreset.executionMode != ExecutionMode.CONCURRENT -> "Başvurulan plan şu anda eşzamanlı modda değil"
+                        target.repeatCount <= 0 -> "${refPreset.targets.count { it.enabled }} düğüm · sonsuz eşzamanlı"
+                        else -> "Süre ${formatMsShort(target.subDurationMs)} · $gapLabel · $repeatTag"
                     }
-                    ActionType.SWIPE -> "${if (!isConcurrent) gapLabel else "间隔 ${target.intervalMs}ms"} · 耗时 ${target.swipeDurationMs}ms · $repeatTag"
+                    ActionType.SWIPE -> "${if (!isConcurrent) gapLabel else "Aralık ${target.intervalMs}ms"} · Süre ${target.swipeDurationMs}ms · $repeatTag"
                     ActionType.HOLD -> if (target.repeatCount <= 0) {
-                        "持续长按驻留 · 无限"
+                        "Süresiz uzun basma"
                     } else {
-                        "按住 ${target.pressDurationMs}ms · ${if (!isConcurrent) gapLabel else "间隔 ${target.intervalMs}ms"} · $repeatTag"
+                        "Basılı tutma ${target.pressDurationMs}ms · ${if (!isConcurrent) gapLabel else "Aralık ${target.intervalMs}ms"} · $repeatTag"
                     }
-                    ActionType.TAP -> "间隔 ${globalIntervalMs}ms · 按压 ${globalPressMs}ms · $repeatTag"
+                    ActionType.TAP -> "Aralık ${globalIntervalMs}ms · Basma ${globalPressMs}ms · $repeatTag"
                 }
                 Text(
                     text = detail,
@@ -934,7 +934,7 @@ private fun TargetRowCard(
                         modifier = Modifier.padding(top = 2.dp)
                     ) {
                         Text(
-                            text = "不断触衔接下步",
+                            text = "Sonraki adıma kesintisiz geç",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -951,7 +951,7 @@ private fun TargetRowCard(
             IconButton(onClick = onDelete, modifier = Modifier.size(30.dp)) {
                 Icon(
                     imageVector = Icons.Rounded.Delete,
-                    contentDescription = "删除步骤",
+                    contentDescription = "Adımı sil",
                     modifier = Modifier.size(16.dp),
                     tint = cs.error
                 )
@@ -962,7 +962,7 @@ private fun TargetRowCard(
 
 private fun formatMsShort(ms: Long): String {
     return if (ms >= 1000L && ms % 1000L == 0L) {
-        "${ms / 1000L}秒"
+        "${ms / 1000L} saniye"
     } else {
         "${ms}ms"
     }
@@ -994,7 +994,7 @@ private fun PresetAddSpeedDial(
                 val iconSize = dpLerp(26.dp, 22.dp, p.coerceIn(0f, 1f))
                 Icon(
                     imageVector = Icons.Rounded.Add,
-                    contentDescription = if (expanded) "收起新建方式" else "新增方案",
+                    contentDescription = if (expanded) "Yeni oluşturma seçeneklerini daralt" else "Yeni profil",
                     tint = iconColor,
                     modifier = Modifier
                         .size(iconSize)
@@ -1012,7 +1012,7 @@ private fun PresetAddSpeedDial(
                     modifier = Modifier.size(22.dp)
                 )
             },
-            text = { Text("脚本", maxLines = 1) }
+            text = { Text("Komut dosyası", maxLines = 1) }
         )
         ExpressiveFabMenuItem(
             onClick = onManual,
@@ -1023,7 +1023,7 @@ private fun PresetAddSpeedDial(
                     modifier = Modifier.size(22.dp)
                 )
             },
-            text = { Text("手动", maxLines = 1) }
+            text = { Text("Manuel", maxLines = 1) }
         )
         ExpressiveFabMenuItem(
             onClick = onRecord,
@@ -1034,7 +1034,7 @@ private fun PresetAddSpeedDial(
                     modifier = Modifier.size(22.dp)
                 )
             },
-            text = { Text("录制", maxLines = 1) }
+            text = { Text("Kaydet", maxLines = 1) }
         )
     }
 }

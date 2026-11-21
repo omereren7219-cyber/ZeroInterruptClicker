@@ -294,7 +294,7 @@ class SwipeConnectorOverlayView(context: Context) : View(context) {
 
                     endTextPaint.alpha = (255 * ringAlphaScale).roundToInt()
                     val ty = node.endY - (endFontMetrics.ascent + endFontMetrics.descent) * 0.5f
-                    canvas.drawText("终", node.endX, ty, endTextPaint)
+                    canvas.drawText("Bitir", node.endX, ty, endTextPaint)
                 }
             }
         }

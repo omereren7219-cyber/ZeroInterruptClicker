@@ -145,7 +145,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(ShizukuController.emergencyUngrabEvents) {
                 ShizukuController.emergencyUngrabEvents.collect {
                     OverlayStateHub.setClickingRunning(this@MainActivity, false)
-                    snackbarHostState.showSnackbar("已响应长按音量减键：紧急释放物理屏独占")
+                    snackbarHostState.showSnackbar("Ses kısma tuşuna uzun basmaya yanıt verildi: fiziksel ekran üzerindeki özel erişim acil olarak serbest bırakıldı")
                 }
             }
 
@@ -338,7 +338,7 @@ class MainActivity : ComponentActivity() {
     private fun copyToClipboard(scope: kotlinx.coroutines.CoroutineScope, label: String, text: String) {
         val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         cm?.setPrimaryClip(ClipData.newPlainText(label, text))
-        showMessage(scope, "已复制 $label")
+        showMessage(scope, "$label kopyalandı")
     }
 
     private fun buildCallbacks(scope: kotlinx.coroutines.CoroutineScope): MainScreenCallbacks {
@@ -365,7 +365,7 @@ class MainActivity : ComponentActivity() {
             onGrantShizuku = {
                 ShizukuController.requestPermission()
                 if (ShizukuController.connectionState.value == ShizukuConnectionState.SHIZUKU_NOT_RUNNING) {
-                    showMessage(scope, "未检测到 Shizuku 后台服务，请先打开 Shizuku 并启动")
+                    showMessage(scope, "Shizuku arka plan hizmeti algılanmadı. Önce Shizuku'yu açıp başlatın")
                 }
             },
             onGrantNotif = {
@@ -382,7 +382,7 @@ class MainActivity : ComponentActivity() {
                     }
                     if (rc < 0) {
                         uiModel = uiModel.copy(selfCheckRemainingMs = 0L)
-                        showMessage(scope, "启动 5 秒校准失败（code=$rc），请检查 Shizuku 与设备节点")
+                        showMessage(scope, "5 saniyelik kalibrasyon başlatılamadı (code=$rc). Shizuku'yu ve cihaz düğümünü kontrol edin")
                     } else {
                         uiModel = uiModel.copy(selfCheckRemainingMs = SELF_CHECK_TIMEOUT_MS)
                         selfCheckTimer = object : CountDownTimer(SELF_CHECK_TIMEOUT_MS, 500L) {
@@ -396,7 +396,7 @@ class MainActivity : ComponentActivity() {
                                     ShizukuController.cancelSelfCheckAndUngrab()
                                 }
                                 syncFromStorageAndSystem()
-                                showMessage(scope, "校准倒计时结束，已自动安全回滚")
+                                showMessage(scope, "Kalibrasyon geri sayımı sona erdi, güvenli geri alma otomatik olarak yapıldı")
                             }
                         }.start()
                     }
@@ -413,7 +413,7 @@ class MainActivity : ComponentActivity() {
                     syncFromStorageAndSystem()
                     showMessage(
                         scope,
-                        if (ok) "触控校准通过，零断触就绪" else "校准确认失败，请重试"
+                        if (ok) "Dokunmatik kalibrasyonu başarılı, dokunma kesintisi olmadan kullanıma hazır" else "Kalibrasyon onayı başarısız, tekrar deneyin"
                     )
                 }
             },
@@ -425,7 +425,7 @@ class MainActivity : ComponentActivity() {
                     ShizukuController.cancelSelfCheckAndUngrab()
                 }
                 syncFromStorageAndSystem()
-                showMessage(scope, "已撤销硬件独占")
+                showMessage(scope, "Donanım üzerindeki özel erişim geri alındı")
             },
             onReleaseNative = {
                 selfCheckTimer?.cancel()
@@ -434,20 +434,20 @@ class MainActivity : ComponentActivity() {
                 scope.launch(Dispatchers.IO) {
                     ShizukuController.shutdownEngine()
                 }
-                showMessage(scope, "已释放底层硬件独占与槽位")
+                showMessage(scope, "Alt düzey donanım üzerindeki özel erişim ve yuvalar serbest bırakıldı")
             },
             onCleanupOrphans = {
                 scope.launch {
                     val count = withContext(Dispatchers.IO) {
                         ShizukuController.cleanupOrphanProcesses()
                     }
-                    showMessage(scope, "已清理 $count 个异常残留进程")
+                    showMessage(scope, "Anormal şekilde kalan $count işlem temizlendi")
                 }
             },
             onRefreshCapabilities = {
                 ShizukuController.evaluateShizukuState()
                 ShizukuController.refreshCapabilitiesAsync()
-                showMessage(scope, "正在重新探测硬件与权限")
+                showMessage(scope, "Donanım ve izinler yeniden denetleniyor")
             },
             onSelectTuningTier = { tier ->
                 saveCurrentSettings(
@@ -497,7 +497,7 @@ class MainActivity : ComponentActivity() {
                     },
                     syncTapPresets = true
                 )
-                showMessage(scope, "已恢复默认参数")
+                showMessage(scope, "Varsayılan parametreler geri yüklendi")
             },
             onIntervalChange = { value, commit ->
                 val clamped = value.coerceIn(ClickTarget.MIN_INTERVAL_MS, ClickTarget.MAX_INTERVAL_MS)
@@ -571,7 +571,7 @@ class MainActivity : ComponentActivity() {
                 ClickConfigStore.applyGlobalTapSettingsToAllPresets(this, settings)
                 notifyOverlayRefresh()
                 syncFromStorageAndSystem()
-                showMessage(scope, "已将连点设置应用到全部方案")
+                showMessage(scope, "Çoklu dokunma ayarları tüm profillere uygulandı")
             },
             onSelectPreset = { presetId ->
                 ClickConfigStore.setActivePresetId(this, presetId)
@@ -607,10 +607,10 @@ class MainActivity : ComponentActivity() {
             onStartMacroRecording = {
                 if (!Settings.canDrawOverlays(this)) {
                     openOverlayPermissionSettings()
-                    showMessage(scope, "请先授予悬浮窗权限以启用录制控件")
+                    showMessage(scope, "Kayıt denetimlerini etkinleştirmek için önce kayan pencere izni verin")
                 } else if (!ShizukuController.isServiceConnected()) {
                     ShizukuController.evaluateShizukuState()
-                    showMessage(scope, "请先在主页或设置向导中授权并连接 Shizuku")
+                    showMessage(scope, "Önce ana sayfadan veya kurulum sihirbazından yetki verip Shizuku'ya bağlanın")
                 } else {
                     ContextCompat.startForegroundService(
                         this,
@@ -618,7 +618,7 @@ class MainActivity : ComponentActivity() {
                             action = OverlayService.ACTION_START_RECORDING
                         }
                     )
-                    showMessage(scope, "录制控件已开启，切到目标画面后点「就绪」")
+                    showMessage(scope, "Kayıt denetimleri açıldı. Hedef ekrana geçtikten sonra «Hazır»a dokunun")
                 }
             },
             onRenamePreset = { presetId, newName ->
@@ -644,7 +644,7 @@ class MainActivity : ComponentActivity() {
             },
             onExportPresetJson = { preset ->
                 val json = ClickConfigStore.exportPresetToJson(preset)
-                copyToClipboard(scope, "方案「${preset.name}」JSON", json)
+                copyToClipboard(scope, "«${preset.name}» profilinin JSON'u", json)
             },
             onImportPresetJson = { rawJson ->
                 val metrics = ShizukuController.getDisplayScreenMetrics(this)
@@ -657,9 +657,9 @@ class MainActivity : ComponentActivity() {
                 if (imported != null) {
                     notifyOverlayRefresh()
                     syncFromStorageAndSystem()
-                    showMessage(scope, "成功导入方案「${imported.name}」")
+                    showMessage(scope, "«${imported.name}» profili başarıyla içe aktarıldı")
                 } else {
-                    showMessage(scope, "JSON 解析失败，请检查内容格式")
+                    showMessage(scope, "JSON ayrıştırılamadı. İçerik biçimini kontrol edin")
                 }
             },
             onImportPresetScript = { rawScript ->
@@ -673,16 +673,16 @@ class MainActivity : ComponentActivity() {
                 if (imported != null) {
                     notifyOverlayRefresh()
                     syncFromStorageAndSystem()
-                    showMessage(scope, "已通过脚本创建方案「${imported.name}」")
+                    showMessage(scope, "Komut dosyasıyla «${imported.name}» profili oluşturuldu")
                 } else {
-                    showMessage(scope, "脚本语法或 JSON 格式无效，请检查后重试")
+                    showMessage(scope, "Komut dosyası sözdizimi veya JSON biçimi geçersiz. Kontrol edip tekrar deneyin")
                 }
             },
             onExportAllPresetsJson = {
                 val presets = ClickConfigStore.loadPresets(this)
                 val activeId = ClickConfigStore.getActivePresetId(this)
                 val json = ClickConfigStore.exportPresetsBundleToJson(presets, activeId)
-                copyToClipboard(scope, "全部 ${presets.size} 个方案 JSON", json)
+                copyToClipboard(scope, "Tüm ${presets.size} profilin JSON'u", json)
             },
             onBatchImportPresetsJson = { rawJson ->
                 val metrics = ShizukuController.getDisplayScreenMetrics(this)
@@ -695,9 +695,9 @@ class MainActivity : ComponentActivity() {
                 if (imported.isNotEmpty()) {
                     notifyOverlayRefresh()
                     syncFromStorageAndSystem()
-                    showMessage(scope, "成功批量导入 ${imported.size} 个方案")
+                    showMessage(scope, "${imported.size} profil toplu olarak içe aktarıldı")
                 } else {
-                    showMessage(scope, "批量 JSON 解析失败，请检查内容格式")
+                    showMessage(scope, "Toplu JSON ayrıştırılamadı. İçerik biçimini kontrol edin")
                 }
             },
             onBatchDeletePresets = { presetIds ->
@@ -705,9 +705,9 @@ class MainActivity : ComponentActivity() {
                 if (deleted > 0) {
                     notifyOverlayRefresh()
                     syncFromStorageAndSystem()
-                    showMessage(scope, "已删除选中的 $deleted 个方案")
+                    showMessage(scope, "Seçili $deleted profil silindi")
                 } else {
-                    showMessage(scope, "至少需要保留 1 个方案")
+                    showMessage(scope, "En az 1 profil tutulmalıdır")
                 }
             },
             onApplyPresetFreezeStates = { frozenIds ->
@@ -715,7 +715,7 @@ class MainActivity : ComponentActivity() {
                 if (changed > 0) {
                     notifyOverlayRefresh()
                     syncFromStorageAndSystem()
-                    showMessage(scope, "已更新方案冻结状态（共冻结 ${frozenIds.size} 个，悬浮窗切换时跳过）")
+                    showMessage(scope, "Profil sabitleme durumu güncellendi (toplam ${frozenIds.size} profil sabitlendi; kayan pencere geçişlerinde atlanacak)")
                 }
             },
             onBatchCreateEmptyPresets = { count, mode ->
@@ -723,7 +723,7 @@ class MainActivity : ComponentActivity() {
                 if (created.isNotEmpty()) {
                     notifyOverlayRefresh()
                     syncFromStorageAndSystem()
-                    showMessage(scope, "已批量添加 ${created.size} 个空方案")
+                    showMessage(scope, "${created.size} boş profil toplu olarak eklendi")
                 }
             },
             onSavePresetTarget = { targetId, x, y, intervalMs, pressMs, jitter, enabled, actionType, endX, endY, swipeDur, repeatCount, refPresetId, subDurationMs ->
@@ -836,7 +836,7 @@ class MainActivity : ComponentActivity() {
                     syncRpc = true
                 )
                 if (enabled) {
-                    showMessage(scope, "已开启专业模式")
+                    showMessage(scope, "Profesyonel mod açıldı")
                 }
             },
             onPreferredBackendChange = { backend ->
@@ -844,7 +844,7 @@ class MainActivity : ComponentActivity() {
                 scope.launch(Dispatchers.IO) {
                     ShizukuController.setPreferredBackend(backend, reinitIfActive = false)
                 }
-                showMessage(scope, "下次启停将优先使用选定注入后端")
+                showMessage(scope, "Bir sonraki açma/kapatma işleminde seçilen enjeksiyon arka ucu öncelikli olarak kullanılacak")
             },
             onRpcBridgeEnabledChange = { enabled ->
                 saveCurrentSettings(
@@ -854,8 +854,8 @@ class MainActivity : ComponentActivity() {
                 )
                 showMessage(
                     scope,
-                    if (enabled) "自动化 RPC 接口桥已开启 (127.0.0.1:${LocalRpcServer.RPC_PORT})"
-                    else "自动化 RPC 接口桥已关闭"
+                    if (enabled) "Otomasyon RPC arayüz köprüsü açıldı (127.0.0.1:${LocalRpcServer.RPC_PORT})"
+                    else "Otomasyon RPC arayüz köprüsü kapatıldı"
                 )
             },
             onResetRpcToken = {
@@ -865,7 +865,7 @@ class MainActivity : ComponentActivity() {
                     notifyOverlay = false,
                     syncRpc = true
                 )
-                showMessage(scope, "已重置 Access Token")
+                showMessage(scope, "Erişim Tokenı sıfırlandı")
             },
             onCopyText = { label, text ->
                 copyToClipboard(scope, label, text)
@@ -955,14 +955,14 @@ class MainActivity : ComponentActivity() {
                 notifyOverlay = false
             )
             val modeLabel = when (safeMode) {
-                ClickGlobalSettings.LAUNCHER_DARK -> "深色"
-                ClickGlobalSettings.LAUNCHER_LIGHT -> "浅色"
-                else -> "跟随系统"
+                ClickGlobalSettings.LAUNCHER_DARK -> "Koyu"
+                ClickGlobalSettings.LAUNCHER_LIGHT -> "Açık"
+                else -> "Sistemi izle"
             }
-            val suffix = if (dynamicIcon) " · 动态取色" else ""
-            showMessage(scope, "桌面图标已设为「$modeLabel$suffix」，返回桌面后生效")
+            val suffix = if (dynamicIcon) " · Dinamik renk" else ""
+            showMessage(scope, "Masaüstü simgesi «$modeLabel$suffix» olarak ayarlandı. Değişiklik ana ekrana dönünce uygulanacak")
         } catch (t: Throwable) {
-            showMessage(scope, "切换图标失败: ${t.message ?: "未知错误"}")
+            showMessage(scope, "Simge değiştirilemedi: ${t.message ?: "Bilinmeyen hata"}")
         }
     }
 
@@ -986,7 +986,7 @@ class MainActivity : ComponentActivity() {
             try {
                 batteryOptLauncher.launch(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
             } catch (_: Throwable) {
-                showMessage(scope, "请在系统应用信息中将本应用设为「无限制」省电策略")
+                showMessage(scope, "Lütfen sistem uygulama bilgilerinden bu uygulamanın pil kullanımını «Sınırsız» olarak ayarlayın")
             }
         }
     }
@@ -996,7 +996,7 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val sbm = getSystemService(StatusBarManager::class.java)
             if (sbm == null) {
-                showMessage(scope, "当前系统不支持自动添加磁贴，请在下拉栏手动编辑添加")
+                showMessage(scope, "Mevcut sistem kutucuğu otomatik olarak eklemeyi desteklemiyor. Açılır panelden elle ekleyin")
                 return
             }
             try {
@@ -1007,17 +1007,17 @@ class MainActivity : ComponentActivity() {
                     mainExecutor
                 ) { resultCode ->
                     val msg = when (resultCode) {
-                        StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED -> "已添加到下拉快捷设置磁贴"
-                        StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED -> "磁贴已在状态栏中"
-                        else -> "已取消添加（或可在下拉栏手工添加）"
+                        StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED -> "Açılır hızlı ayarlar kutucuğuna eklendi"
+                        StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED -> "Kutucuk durum çubuğunda zaten var"
+                        else -> "Ekleme iptal edildi (veya açılır panelden elle ekleyebilirsiniz)"
                     }
                     showMessage(scope, msg)
                 }
             } catch (_: Throwable) {
-                showMessage(scope, "请在系统下拉通知栏点击编辑，添加「零断触悬浮窗」磁贴")
+                showMessage(scope, "Sistem bildirim perdesini aşağı çekip düzenle'ye dokunun ve «Sıfır Kesintili Kayan Pencere» kutucuğunu ekleyin")
             }
         } else {
-            showMessage(scope, "请下拉系统状态栏点击编辑，添加「零断触悬浮窗」快捷磁贴")
+            showMessage(scope, "Sistem durum çubuğunu aşağı çekip düzenle'ye dokunun ve «Sıfır Kesintili Kayan Pencere» hızlı kutucuğunu ekleyin")
         }
     }
 

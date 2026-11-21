@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">零断触连点器</string>
-    <string name="tile_label">零断触悬浮窗</string>
-    <string name="notification_channel_name">零断触悬浮窗服务</string>
-    <string name="notification_title">零断触连点器运行中</string>
-    <string name="notification_text">点击通知栏按钮可快速停止连点或退出悬浮窗</string>
-    <string name="action_stop_clicking">停止连点</string>
-    <string name="action_exit_overlay">退出悬浮窗</string>
+    <string name="app_name">Kesintisiz Dokunma</string>
+    <string name="tile_label">Kesintisiz Dokunma Yüzen Penceresi</string>
+    <string name="notification_channel_name">Kesintisiz Dokunma Yüzen Pencere Hizmeti</string>
+    <string name="notification_title">Kesintisiz Dokunma çalışıyor</string>
+    <string name="notification_text">Sürekli dokunmayı durdurmak veya yüzen pencereden çıkmak için bildirim düğmelerine dokunun</string>
+    <string name="action_stop_clicking">Sürekli dokunmayı durdur</string>
+    <string name="action_exit_overlay">Yüzen pencereden çık</string>
 </resources>

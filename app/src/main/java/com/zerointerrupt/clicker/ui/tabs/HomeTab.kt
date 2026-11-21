@@ -75,8 +75,8 @@ fun HomeTab(
     val menuActions = buildList {
         add(
             OverflowMenuAction(
-                label = "初始化向导",
-                badge = if (state.needsSetupWizard) "待配置" else "已就绪",
+                label = "Kurulum sihirbazı",
+                badge = if (state.needsSetupWizard) "Yapılandırılmadı" else "Hazır",
                 badgeHighlight = state.needsSetupWizard,
                 onClick = onOpenSetupWizard
             )
@@ -84,7 +84,7 @@ fun HomeTab(
         if (state.connectionState == ShizukuConnectionState.CONNECTED) {
             add(
                 OverflowMenuAction(
-                    label = "释放硬件独占",
+                    label = "Donanımın özel kullanımını bırak",
                     isDestructive = true,
                     onClick = callbacks.onReleaseNative
                 )
@@ -92,7 +92,7 @@ fun HomeTab(
         }
         add(
             OverflowMenuAction(
-                label = "刷新状态",
+                label = "Durumu yenile",
                 onClick = callbacks.onRefreshCapabilities
             )
         )
@@ -112,7 +112,7 @@ fun HomeTab(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             PageTopHeader(
-                title = "启动",
+                title = "Başlat",
                 menuActions = menuActions,
                 showMenuAlertDot = state.needsSetupWizard
             )
@@ -363,9 +363,9 @@ private fun HeroWavyRingButton(
 
         Text(
             text = when {
-                overlayVisible -> if (clickingRunning) "运行中" else "关闭悬浮窗"
-                needsSetup -> "待初始化"
-                else -> "开启悬浮窗"
+                overlayVisible -> if (clickingRunning) "Çalışıyor" else "Yüzen pencereyi kapat"
+                needsSetup -> "Başlatma bekleniyor"
+                else -> "Yüzen pencereyi etkinleştir"
             },
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,

@@ -11,10 +11,10 @@ import java.security.SecureRandom
 import kotlin.math.max
 
 enum class ActionType(val code: Int, val label: String) {
-    TAP(0, "连点"),
-    SWIPE(1, "滑动"),
-    HOLD(2, "长按"),
-    SUB_PRESET(3, "并发方案");
+    TAP(0, "Otomatik dokunma"),
+    SWIPE(1, "Kaydırma"),
+    HOLD(2, "Uzun basma"),
+    SUB_PRESET(3, "Eşzamanlı plan");
 
     companion object {
         fun fromCode(code: Int): ActionType = entries.firstOrNull { it.code == code } ?: TAP
@@ -22,8 +22,8 @@ enum class ActionType(val code: Int, val label: String) {
 }
 
 enum class ExecutionMode(val code: Int, val label: String) {
-    CONCURRENT(0, "同步并发"),
-    SEQUENTIAL(1, "顺序连招");
+    CONCURRENT(0, "Eşzamanlı"),
+    SEQUENTIAL(1, "Sıralı hareketler");
 
     companion object {
         fun fromCode(code: Int): ExecutionMode = entries.firstOrNull { it.code == code } ?: CONCURRENT
@@ -533,13 +533,13 @@ object ClickConfigStore {
                 for (i in 0 until arr.length()) {
                     val obj = arr.optJSONObject(i) ?: continue
                     val id = obj.optString("id", "").ifBlank { "preset_${i + 1}" }
-                    var name = obj.optString("name", "").ifBlank { "方案 ${i + 1}" }
+                    var name = obj.optString("name", "").ifBlank { "Plan ${i + 1}" }
                     val execMode = ExecutionMode.fromCode(obj.optInt("executionMode", 0))
                     val loopCount = obj.optInt("presetLoopCount", 0)
                         .coerceIn(ClickTarget.MIN_REPEAT_COUNT, ClickTarget.MAX_REPEAT_COUNT)
                     var frozen = if (obj.has("isFrozen")) obj.optBoolean("isFrozen", false) else false
                     if (!obj.has("isFrozen") && name.trimStart().startsWith("#")) {
-                        name = name.trimStart().dropWhile { it == '#' }.trimStart().ifEmpty { "方案 ${i + 1}" }
+                        name = name.trimStart().dropWhile { it == '#' }.trimStart().ifEmpty { "Plan ${i + 1}" }
                         frozen = true
                         migratedLegacyFrozen = true
                     }
@@ -592,7 +592,7 @@ object ClickConfigStore {
 
         val migrated = ClickPreset(
             id = DEFAULT_PRESET_ID,
-            name = "方案 1",
+            name = "Plan 1",
             executionMode = ExecutionMode.CONCURRENT,
             targets = loadLegacyTargetsRaw(context)
         )
@@ -608,7 +608,7 @@ object ClickConfigStore {
         activePresetId: String
     ) {
         val safeList = if (presets.isEmpty()) {
-            listOf(ClickPreset(id = DEFAULT_PRESET_ID, name = "方案 1"))
+            listOf(ClickPreset(id = DEFAULT_PRESET_ID, name = "Plan 1"))
         } else {
             presets
         }
@@ -669,7 +669,7 @@ object ClickConfigStore {
     }
 
     fun nextMainPresetNumber(presets: List<ClickPreset>): Int {
-        val regex = Regex("^方案\\s*(\\d+)$")
+        val regex = Regex("^Plan\\s*(\\d+)$")
         var maxNum = 0
         for (p in presets) {
             val m = regex.find(p.name.trim())
@@ -708,7 +708,7 @@ object ClickConfigStore {
             seq++
             newId = "preset_$seq"
         }
-        val cleanName = name.trim().ifEmpty { "方案 ${nextMainPresetNumber(presets)}" }
+        val cleanName = name.trim().ifEmpty { "Plan ${nextMainPresetNumber(presets)}" }
         val copiedTargets = initialTargets.mapIndexed { idx, t ->
             t.copy(id = idx + 1, index = idx + 1)
         }.toMutableList()
@@ -771,7 +771,7 @@ object ClickConfigStore {
         }.toMutableList()
         val finalMain = ClickPreset(
             id = mainId,
-            name = mainPreset.name.trim().ifEmpty { "方案 ${nextMainPresetNumber(presets)}" },
+            name = mainPreset.name.trim().ifEmpty { "Plan ${nextMainPresetNumber(presets)}" },
             executionMode = mainPreset.executionMode,
             presetLoopCount = mainPreset.presetLoopCount.coerceIn(ClickTarget.MIN_REPEAT_COUNT, ClickTarget.MAX_REPEAT_COUNT),
             isFrozen = false,
@@ -1253,8 +1253,8 @@ object ClickConfigStore {
             while ("preset_$seq" in existingIds) seq++
             val newId = "preset_$seq"
             existingIds += newId
-            while ("方案 $nameNum" in existingNames) nameNum++
-            val name = "方案 $nameNum"
+            while ("Plan $nameNum" in existingNames) nameNum++
+            val name = "Plan $nameNum"
             existingNames += name
             val p = ClickPreset(
                 id = newId,
@@ -1402,14 +1402,14 @@ object ClickConfigStore {
             val isRecorded: Boolean
             val targets: MutableList<ClickTarget>
             if (trimmed.startsWith("[")) {
-                name = "导入方案"
+                name = "Planları içe aktar"
                 execMode = ExecutionMode.CONCURRENT
                 loopCount = 0
                 isRecorded = false
                 targets = jsonArrayToTargets(JSONArray(trimmed), defaultRepeat = 0)
             } else {
                 val obj = JSONObject(trimmed)
-                name = obj.optString("name", "").ifBlank { "导入方案" }
+                name = obj.optString("name", "").ifBlank { "Planları içe aktar" }
                 execMode = ExecutionMode.fromCode(obj.optInt("executionMode", 0))
                 loopCount = obj.optInt("presetLoopCount", 0)
                     .coerceIn(ClickTarget.MIN_REPEAT_COUNT, ClickTarget.MAX_REPEAT_COUNT)
@@ -1518,7 +1518,7 @@ object ClickConfigStore {
                     defaultRepeat = ClickTarget.defaultRepeatFor(execMode)
                 )
                 targets.forEach { it.remapToScreen(screenW, screenH) }
-                val cleanName = rawName.ifEmpty { "导入方案 ${existingPresets.size + staged.size + 1}" }
+                val cleanName = rawName.ifEmpty { "Plan ${existingPresets.size + staged.size + 1} içe aktar" }
                 staged += StagedPreset(oldId, newId, cleanName, execMode, loopCount, isFrozen, oldParentId, isRecorded, targets)
             }
             if (staged.isEmpty()) return emptyList()
@@ -1560,7 +1560,7 @@ object ClickConfigStore {
         }
     }
 
-    const val SCRIPT_TEMPLATE_EXAMPLE = """# name: 脚本方案
+    const val SCRIPT_TEMPLATE_EXAMPLE = """# name: Komut dosyası planı
 # mode: seq
 # loop: 1
 tap 540 1200 24 80 1
@@ -1583,7 +1583,7 @@ swipe 300 1600 800 1600 280 120 1"""
         }
 
         val presets = loadPresets(context)
-        var name = "脚本方案 ${nextMainPresetNumber(presets)}"
+        var name = "Komut dosyası planı ${nextMainPresetNumber(presets)}"
         var execMode = ExecutionMode.SEQUENTIAL
         var loopCount = 0
         val parsedTargets = mutableListOf<ClickTarget>()
@@ -1601,7 +1601,7 @@ swipe 300 1600 800 1600 280 120 1"""
                     }
                     meta.startsWith("mode:", ignoreCase = true) -> {
                         val m = meta.substringAfter(":").trim().lowercase()
-                        execMode = if (m.startsWith("conc") || m == "并发") {
+                        execMode = if (m.startsWith("conc") || m == "Eşzamanlı") {
                             ExecutionMode.CONCURRENT
                         } else {
                             ExecutionMode.SEQUENTIAL

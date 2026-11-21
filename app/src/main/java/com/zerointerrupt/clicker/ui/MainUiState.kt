@@ -10,10 +10,10 @@ import com.zerointerrupt.clicker.shizuku.EngineSnapshot
 import com.zerointerrupt.clicker.shizuku.ShizukuConnectionState
 
 enum class MainTab(val title: String) {
-    HOME("启动"),
-    PRESETS("方案"),
-    TUNING("调校"),
-    LAB("实验室")
+    HOME("Başlat"),
+    PRESETS("Profil"),
+    TUNING("Ayarla"),
+    LAB("Laboratuvar")
 }
 
 data class MainUiState(
