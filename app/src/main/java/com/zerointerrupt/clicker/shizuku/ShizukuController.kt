@@ -83,6 +83,8 @@ data class ShizukuDiagnostics(
     val exceptionClass: String = "",
     val exceptionMessage: String = "",
     val logCaptureStatus: String = "Logcat erişimi yok; yalnızca uygulamanın gözlemlediği Shizuku olayları kaydediliyor",
+    val noopTestStatus: String = "Henüz çalıştırılmadı",
+    val noopTestTimestampMs: Long = -1L,
     val bindStatus: String = "Başlatılmadı",
     val bindDurationMs: Long = -1L,
     val onServiceConnectedResult: String = "Henüz çağrılmadı",
@@ -117,7 +119,11 @@ object ShizukuController {
     private var boundArgs: Shizuku.UserServiceArgs? = null
     private var bindTimeoutJob: Job? = null
     private var bindStartedAtMs = 0L
+    private var noopArgs: Shizuku.UserServiceArgs? = null
+    private var noopBindTimeoutJob: Job? = null
+    private var noopBindStartedAtMs = 0L
     private const val BIND_TIMEOUT_MS = 5_000L
+    private const val NOOP_BIND_TIMEOUT_MS = 5_000L
     private const val REBIND_DELAY_MS = 250L
     private val bindLock = Any()
     private var bindInFlight = false
@@ -322,6 +328,47 @@ object ShizukuController {
         }
     }
 
+    private val noopServiceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+            noopBindTimeoutJob?.cancel()
+            noopBindTimeoutJob = null
+            val alive = binder?.pingBinder() == true
+            val status = if (alive) {
+                "BAĞLANDI: Binder canlı; component=$name"
+            } else {
+                "HATA: callback geldi ancak Binder geçersiz/ölü; component=$name"
+            }
+            Log.i(TAG, "No-op UserService $status")
+            updateNoopTestStatus(status)
+            publishDiagnostics(
+                event = "No-op UserService onServiceConnected",
+                error = if (alive) "" else status,
+                timelineDetail = status
+            )
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            val status = "KOPTU: onServiceDisconnected; component=$name"
+            Log.w(TAG, "No-op UserService $status")
+            updateNoopTestStatus(status)
+            publishDiagnostics("No-op UserService onServiceDisconnected", status, timelineDetail = status)
+        }
+
+        override fun onBindingDied(name: ComponentName) {
+            val status = "KOPTU: onBindingDied; component=$name"
+            Log.e(TAG, "No-op UserService $status")
+            updateNoopTestStatus(status)
+            publishDiagnostics("No-op UserService onBindingDied", status, timelineDetail = status)
+        }
+
+        override fun onNullBinding(name: ComponentName) {
+            val status = "HATA: onNullBinding; component=$name"
+            Log.e(TAG, "No-op UserService $status")
+            updateNoopTestStatus(status)
+            publishDiagnostics("No-op UserService onNullBinding", status, timelineDetail = status)
+        }
+    }
+
     fun initialize(context: Context) {
         Log.d(TAG, "Shizuku initialize başlatıldı")
         if (appContext == null) {
@@ -492,6 +539,82 @@ object ShizukuController {
         )
     }
 
+    private fun updateNoopTestStatus(status: String) {
+        _diagnostics.value = _diagnostics.value.copy(
+            noopTestStatus = status,
+            noopTestTimestampMs = System.currentTimeMillis()
+        ).also { persistDiagnostics(it) }
+    }
+
+    /**
+     * Binds a separate Binder-only UserService. This never touches the production
+     * UserService and performs no input, native, game, or automation operation.
+     */
+    fun runNoopUserServiceTest() {
+        val ctx = appContext
+        if (ctx == null) {
+            updateNoopTestStatus("ÇALIŞTIRILAMADI: uygulama context hazır değil")
+            return
+        }
+        if (!Shizuku.pingBinder() || !hasPermission()) {
+            updateNoopTestStatus("ÇALIŞTIRILAMADI: Shizuku binder veya permission hazır değil")
+            publishDiagnostics(
+                "No-op UserService testi başlatılamadı",
+                "Shizuku binder/permission hazır değil",
+                timelineDetail = "No-op bind çağrısı yapılmadı"
+            )
+            return
+        }
+
+        noopBindTimeoutJob?.cancel()
+        noopArgs?.let { oldArgs ->
+            runCatching { Shizuku.unbindUserService(oldArgs, noopServiceConnection, true) }
+        }
+        noopBindStartedAtMs = System.currentTimeMillis()
+        updateNoopTestStatus("BAŞLATILDI: bindUserService bekleniyor")
+        publishDiagnostics(
+            "No-op UserService bind başlatıldı",
+            "",
+            timelineDetail = "Ayrı Binder-only UserService; production service kullanılmıyor"
+        )
+
+        val args = Shizuku.UserServiceArgs(
+            ComponentName(ctx.packageName, NoopShizukuUserService::class.java.name)
+        )
+            .daemon(false)
+            .processNameSuffix("shizuku-noop")
+            .debuggable(BuildConfig.DEBUG)
+            .version(BuildConfig.VERSION_CODE)
+            .tag("noop-connectivity-test")
+        noopArgs = args
+
+        try {
+            Shizuku.bindUserService(args, noopServiceConnection)
+            noopBindTimeoutJob = scope.launch {
+                delay(NOOP_BIND_TIMEOUT_MS)
+                if (_diagnostics.value.noopTestStatus == "BAŞLATILDI: bindUserService bekleniyor") {
+                    val status = "TIMEOUT: 5000 ms içinde No-op UserService callback’i gelmedi"
+                    Log.e(TAG, status)
+                    updateNoopTestStatus(status)
+                    publishDiagnostics(
+                        "No-op UserService bind timeout",
+                        status,
+                        timelineDetail = "onServiceConnected/onNullBinding/onBindingDied/onServiceDisconnected çağrılmadı"
+                    )
+                    runCatching { Shizuku.unbindUserService(args, noopServiceConnection, true) }
+                }
+                noopBindTimeoutJob = null
+            }
+        } catch (t: Throwable) {
+            val status = "HATA: ${t.javaClass.simpleName}: ${t.message ?: "mesaj yok"}"
+            Log.e(TAG, "No-op UserService bind başarısız", t)
+            noopBindTimeoutJob?.cancel()
+            noopBindTimeoutJob = null
+            updateNoopTestStatus(status)
+            publishDiagnostics("No-op UserService bind exception", status, throwable = t)
+        }
+    }
+
     fun refreshShizukuDiagnostics() {
         publishDiagnostics("Manuel tanı yenilendi", "")
     }
@@ -568,6 +691,8 @@ object ShizukuController {
             lastCallback = previous.lastCallback,
             exceptionClass = if (manualRefresh) previous.exceptionClass else exceptionClass,
             exceptionMessage = if (manualRefresh) previous.exceptionMessage else exceptionMessage,
+            noopTestStatus = previous.noopTestStatus,
+            noopTestTimestampMs = previous.noopTestTimestampMs,
             bindStatus = bindStatus ?: previous.bindStatus,
             bindDurationMs = durationMs,
             onServiceConnectedResult = previous.onServiceConnectedResult,
@@ -644,6 +769,8 @@ object ShizukuController {
                 "logCaptureStatus",
                 "Logcat erişimi yok; yalnızca uygulamanın gözlemlediği Shizuku olayları kaydediliyor"
             ) ?: "Logcat erişimi yok; yalnızca uygulamanın gözlemlediği Shizuku olayları kaydediliyor",
+            noopTestStatus = prefs.getString("noopTestStatus", "Henüz çalıştırılmadı") ?: "Henüz çalıştırılmadı",
+            noopTestTimestampMs = prefs.getLong("noopTestTimestampMs", -1L),
             bindStatus = prefs.getString("bindStatus", "Başlatılmadı") ?: "Başlatılmadı",
             bindDurationMs = prefs.getLong("bindDurationMs", -1L),
             onServiceConnectedResult = prefs.getString("onServiceConnectedResult", "Henüz çağrılmadı") ?: "Henüz çağrılmadı",
@@ -669,6 +796,8 @@ object ShizukuController {
             ?.putString("exceptionClass", value.exceptionClass)
             ?.putString("exceptionMessage", value.exceptionMessage)
             ?.putString("logCaptureStatus", value.logCaptureStatus)
+            ?.putString("noopTestStatus", value.noopTestStatus)
+            ?.putLong("noopTestTimestampMs", value.noopTestTimestampMs)
             ?.putString("bindStatus", value.bindStatus)
             ?.putLong("bindDurationMs", value.bindDurationMs)
             ?.putString("onServiceConnectedResult", value.onServiceConnectedResult)
@@ -713,6 +842,8 @@ object ShizukuController {
             appendLine(line("Exception sınıfı", value.exceptionClass.ifBlank { "Yok" }))
             appendLine(line("Exception mesajı", value.exceptionMessage.ifBlank { "Yok" }))
             appendLine(line("Log kayıt kapsamı", value.logCaptureStatus))
+            appendLine(line("No-op UserService testi", value.noopTestStatus))
+            appendLine(line("No-op test zamanı", time(value.noopTestTimestampMs)))
             appendLine()
             appendLine("Olay zaman çizelgesi:")
             if (value.eventTimeline.isEmpty()) {

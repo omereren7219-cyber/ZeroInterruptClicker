@@ -174,6 +174,8 @@ fun LabTab(
                         DiagLine("Exception sınıfı", shizukuDiagnostics.exceptionClass.ifBlank { "Henüz exception yok" })
                         DiagLine("Exception mesajı", shizukuDiagnostics.exceptionMessage.ifBlank { "Henüz exception yok" })
                         DiagLine("Log kayıt kapsamı", shizukuDiagnostics.logCaptureStatus)
+                        DiagLine("No-op UserService testi", shizukuDiagnostics.noopTestStatus)
+                        DiagLine("No-op test zamanı", diagnosticTime(shizukuDiagnostics.noopTestTimestampMs))
                         Text(
                             text = "Son hata: ${shizukuDiagnostics.lastError}",
                             style = MaterialTheme.typography.labelSmall,
@@ -211,6 +213,12 @@ fun LabTab(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Teşhis kayıtlarını metin dosyası olarak dışa aktar")
+                }
+                FilledTonalButton(
+                    onClick = { ShizukuController.runNoopUserServiceTest() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Zararsız No-op UserService bağlantı testi")
                 }
             }
         }
